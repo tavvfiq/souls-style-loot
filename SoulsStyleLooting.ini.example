@@ -1,0 +1,21 @@
+; Souls Style Looting - copy to: Documents\My Games\Skyrim Special Edition\SKSE\SoulsStyleLooting.ini
+; SafetyKey: Virtual key code held to open normal container menu. 0 = disabled. 16=Shift, 17=Ctrl, 18=Alt. MCM overrides.
+; LootDisplaySeconds: How long the loot popup stays visible (2-15).
+; DropChancePercent: chance that a corpse drops any random loot (0-100). MCM DarkSoulsPickUpChances overrides.
+; Tier: common -> legendary. Type: weapon, armor, ammo, misc, book. All values 0-100 (percentage).
+;
+; --- Balanced preset (below) ---
+; Corpse drops loot 75% of the time. Common items often, legendary rare. Weapons/armor a bit rarer than misc, books rarer.
+[Settings]
+SafetyKey=16
+LootDisplaySeconds=5.0
+DropChancePercent=75
+Tier0DropChance=100
+Tier1DropChance=65
+Tier2DropChance=35
+Tier3DropChance=15
+WeaponDropChance=85
+ArmorDropChance=85
+AmmoDropChance=90
+MiscDropChance=95
+BookDropChance=50

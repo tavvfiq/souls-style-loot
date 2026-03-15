@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Souls Style Loot</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: "EB Garamond", "Times New Roman", Georgia, serif;
+            background: transparent;
+            color: #fff;
+            user-select: none;
+            pointer-events: none;
+        }
+        #loot-panel {
+            position: fixed;
+            left: 50%;
+            bottom: 24%;
+            transform: translateX(-50%);
+            min-width: 200px;
+            max-width: 300px;
+            opacity: 0;
+            transition: opacity 0.25s ease;
+        }
+        #loot-panel.visible {
+            opacity: 1;
+        }
+        /* Outer panel: semi-transparent black, double-line border */
+        .panel-frame {
+            background: rgba(10, 10, 10, 0.78);
+            border: 1px solid #b8b4a8;
+            box-shadow: inset 0 0 0 1px rgba(184, 180, 168, 0.6);
+            padding: 8px 12px 10px;
+            position: relative;
+        }
+        /* Corner ornaments (Nordic-style L accents) */
+        .panel-frame::before,
+        .panel-frame::after {
+            content: "";
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border-color: #b8b4a8;
+            border-style: solid;
+            border-width: 0;
+        }
+        .panel-frame::before {
+            top: -1px;
+            left: -1px;
+            border-top-width: 2px;
+            border-left-width: 2px;
+        }
+        .panel-frame::after {
+            top: -1px;
+            right: -1px;
+            border-top-width: 2px;
+            border-right-width: 2px;
+        }
+        .panel-frame .corner-bot-left,
+        .panel-frame .corner-bot-right {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border-color: #b8b4a8;
+            border-style: solid;
+            border-width: 0;
+            bottom: -1px;
+        }
+        .panel-frame .corner-bot-left {
+            left: -1px;
+            border-bottom-width: 2px;
+            border-left-width: 2px;
+        }
+        .panel-frame .corner-bot-right {
+            right: -1px;
+            border-bottom-width: 2px;
+            border-right-width: 2px;
+        }
+        #loot-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+        .loot-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 2px 6px;
+            font-size: 14px;
+            letter-spacing: 0.03em;
+            color: #fff;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.9);
+        }
+        .loot-row .item-name {
+            flex: 1;
+            text-align: left;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding-right: 8px;
+        }
+        .loot-row .item-count {
+            flex-shrink: 0;
+            color: #e0dcd4;
+            font-weight: 600;
+        }
+        /* Double-line separator between rows */
+        .loot-row + .loot-row {
+            border-top: 1px solid #8a8680;
+            box-shadow: 0 1px 0 0 rgba(184, 180, 168, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div id="loot-panel">
+        <div class="panel-frame">
+            <span class="corner-bot-left"></span>
+            <span class="corner-bot-right"></span>
+            <div id="loot-list"></div>
+        </div>
+    </div>
+    <script>
+        (function() {
+            const PANEL_ID = 'loot-panel';
+            const LIST_ID = 'loot-list';
+            const DEFAULT_DISPLAY_MS = 5000;
+            let hideTimer = null;
+
+            window.showLoot = function(jsonString) {
+                const panel = document.getElementById(PANEL_ID);
+                const list = document.getElementById(LIST_ID);
+                if (!panel || !list) return;
+                try {
+                    const data = JSON.parse(jsonString);
+                    const items = (data && Array.isArray(data.items)) ? data.items : (Array.isArray(data) ? data : []);
+                    const displayMs = (data && typeof data.displayMs === 'number') ? Math.max(2000, Math.min(15000, data.displayMs)) : DEFAULT_DISPLAY_MS;
+                    if (items.length === 0) {
+                        panel.classList.remove('visible');
+                        return;
+                    }
+                    list.innerHTML = items.map(function(item) {
+                        const name = (item && item.name) ? item.name : 'Item';
+                        const count = (item && typeof item.count === 'number') ? item.count : 1;
+                        const countStr = count > 1 ? 'x' + count : 'x1';
+                        return '<div class="loot-row">' +
+                            '<span class="item-name">' + escapeHtml(name) + '</span>' +
+                            '<span class="item-count">' + escapeHtml(countStr) + '</span>' +
+                            '</div>';
+                    }).join('');
+                    panel.classList.add('visible');
+                    if (hideTimer) clearTimeout(hideTimer);
+                    hideTimer = setTimeout(function() {
+                        panel.classList.remove('visible');
+                        hideTimer = null;
+                    }, displayMs);
+                } catch (e) {
+                    console.error('showLoot:', e);
+                    panel.classList.remove('visible');
+                }
+            };
+
+            function escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+        })();
+    </script>
+</body>
+</html>

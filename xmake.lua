@@ -1,26 +1,38 @@
--- include subprojects
-includes("lib/commonlibsse")
+-- set minimum xmake version
+set_xmakever("2.8.2")
 
--- set project constants
-set_project("commonlibsse-template")
+-- include CommonLibSSE-NG (same template as dynamicGrip); adjust path if needed
+includes("lib/CommonLibSSE-NG")
+
+-- set project
+set_project("SoulsStyleLooting")
 set_version("0.0.0")
 set_license("GPL-3.0")
+
+-- set defaults
 set_languages("c++23")
 set_warnings("allextra")
 
--- add common rules
+-- add rules
 add_rules("mode.debug", "mode.releasedbg")
 add_rules("plugin.vsxmake.autoupdate")
 
--- define targets
-target("commonlibsse-template")
-    add_rules("commonlibsse.plugin", {
-        name = "commonlibsse-template",
+-- build release with debug symbols so .pdb is generated (for crash debugging)
+set_defaultmode("releasedbg")
+
+-- require packages (optional; add as needed)
+-- add_requires("simpleini")
+
+-- targets
+target("SoulsStyleLooting")
+    add_deps("commonlibsse-ng")
+
+    add_rules("commonlibsse-ng.plugin", {
+        name = "SoulsStyleLooting",
         author = "libxse",
-        description = "SKSE64 plugin template using CommonLibSSE"
+        description = "Souls-style looting for Skyrim"
     })
 
-    -- add src files
     add_files("src/**.cpp")
     add_headerfiles("src/**.h")
     add_includedirs("src")
