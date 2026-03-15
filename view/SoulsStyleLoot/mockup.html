@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Souls Style Loot — Mockup</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: "EB Garamond", "Times New Roman", Georgia, serif;
+            background: linear-gradient(180deg, #1a1510 0%, #0d0a08 100%);
+            min-height: 100vh;
+            color: #fff;
+            user-select: none;
+        }
+        #loot-panel {
+            position: fixed;
+            left: 50%;
+            bottom: 24%;
+            transform: translateX(-50%);
+            min-width: 200px;
+            max-width: 300px;
+        }
+        .panel-frame {
+            background: rgba(10, 10, 10, 0.78);
+            border: 1px solid #b8b4a8;
+            box-shadow: inset 0 0 0 1px rgba(184, 180, 168, 0.6);
+            padding: 8px 12px 10px;
+            position: relative;
+        }
+        .panel-frame::before,
+        .panel-frame::after {
+            content: "";
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border-color: #b8b4a8;
+            border-style: solid;
+            border-width: 0;
+        }
+        .panel-frame::before {
+            top: -1px;
+            left: -1px;
+            border-top-width: 2px;
+            border-left-width: 2px;
+        }
+        .panel-frame::after {
+            top: -1px;
+            right: -1px;
+            border-top-width: 2px;
+            border-right-width: 2px;
+        }
+        .panel-frame .corner-bot-left,
+        .panel-frame .corner-bot-right {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border-color: #b8b4a8;
+            border-style: solid;
+            border-width: 0;
+            bottom: -1px;
+        }
+        .panel-frame .corner-bot-left {
+            left: -1px;
+            border-bottom-width: 2px;
+            border-left-width: 2px;
+        }
+        .panel-frame .corner-bot-right {
+            right: -1px;
+            border-bottom-width: 2px;
+            border-right-width: 2px;
+        }
+        #loot-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+        .loot-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 2px 6px;
+            font-size: 14px;
+            letter-spacing: 0.03em;
+            color: #fff;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.9);
+        }
+        .loot-row .item-name {
+            flex: 1;
+            text-align: left;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding-right: 8px;
+        }
+        .loot-row .item-count {
+            flex-shrink: 0;
+            color: #e0dcd4;
+            font-weight: 600;
+        }
+        .loot-row + .loot-row {
+            border-top: 1px solid #8a8680;
+            box-shadow: 0 1px 0 0 rgba(184, 180, 168, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div id="loot-panel">
+        <div class="panel-frame">
+            <span class="corner-bot-left"></span>
+            <span class="corner-bot-right"></span>
+            <div id="loot-list">
+                <div class="loot-row">
+                    <span class="item-name">Steel Greatsword</span>
+                    <span class="item-count">x1</span>
+                </div>
+                <div class="loot-row">
+                    <span class="item-name">Steel Dagger</span>
+                    <span class="item-count">x1</span>
+                </div>
+                <div class="loot-row">
+                    <span class="item-name">Nord Mail Shirt</span>
+                    <span class="item-count">x1</span>
+                </div>
+                <div class="loot-row">
+                    <span class="item-name">Gold</span>
+                    <span class="item-count">x42</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
