@@ -1,6 +1,7 @@
 #include "pch.h"
-#include "Config.h"
 #include "PrismaUI.h"
+#include "Config.h"
+#include "IconUtils.h"
 #include "SoulsLog.h"
 #include "RE/B/BSString.h"
 #include "RE/B/BGSBipedObjectForm.h"
@@ -18,6 +19,8 @@
 #include <algorithm>
 #include <cctype>
 #include <thread>
+#include <fstream>
+#include <unordered_map>
 
 namespace SoulsLoot
 {
@@ -32,6 +35,10 @@ namespace SoulsLoot
 			std::atomic<bool> g_waitingForClose{ false };
 			std::string g_pendingJson;
 			std::mutex g_pendingMutex;
+
+			// Map of formID -> PNG path (relative, e.g. SoulsStyleLoot/assets/generated/...)
+			std::unordered_map<RE::FormID, std::string> g_iconPngByForm;
+			std::once_flag g_manifestOnce;
 
 			bool poll_gamepad_activate()
 			{
@@ -98,6 +105,107 @@ namespace SoulsLoot
 				if (!cm) return "keyboard";
 				if (!cm->ignoreKeyboardMouse) return "keyboard";
 				return (cm->GetGamePadType() == RE::PC_GAMEPAD_TYPE::kOrbis) ? "controllerPs" : "controller";
+			}
+
+			void load_icon_manifest()
+			{
+				const char* manifestPath = Config::GetIconManifestPath();
+				if (!manifestPath || !*manifestPath) {
+					return;
+				}
+
+				std::ifstream in(manifestPath);
+				if (!in) {
+					SoulsLog::LineF("PrismaUI: failed to open icon manifest at %s", manifestPath);
+					SKSE::log::warn("PrismaUI: failed to open icon manifest at {}", manifestPath);
+					return;
+				}
+
+				std::string data((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+				if (data.empty()) {
+					return;
+				}
+
+				g_iconPngByForm.clear();
+
+				std::size_t pos = 0;
+				for (;;) {
+					pos = data.find("\"formID\"", pos);
+					if (pos == std::string::npos) {
+						break;
+					}
+
+					std::size_t colon = data.find(':', pos);
+					if (colon == std::string::npos) {
+						break;
+					}
+
+					std::size_t q1 = data.find('"', colon);
+					if (q1 == std::string::npos) {
+						break;
+					}
+					std::size_t q2 = data.find('"', q1 + 1);
+					if (q2 == std::string::npos) {
+						break;
+					}
+					std::string formStr = data.substr(q1 + 1, q2 - q1 - 1);
+					RE::FormID formID = 0;
+					if (!formStr.empty()) {
+						formID = static_cast<RE::FormID>(std::strtoul(formStr.c_str(), nullptr, 0));
+					}
+
+					std::size_t pngPos = data.find("\"pngPath\"", q2);
+					if (pngPos == std::string::npos) {
+						pos = q2;
+						continue;
+					}
+					std::size_t pngColon = data.find(':', pngPos);
+					if (pngColon == std::string::npos) {
+						pos = pngPos;
+						continue;
+					}
+					std::size_t pq1 = data.find('"', pngColon);
+					if (pq1 == std::string::npos) {
+						pos = pngColon;
+						continue;
+					}
+					std::size_t pq2 = data.find('"', pq1 + 1);
+					if (pq2 == std::string::npos) {
+						pos = pq1;
+						continue;
+					}
+					std::string pngPath = data.substr(pq1 + 1, pq2 - pq1 - 1);
+
+					if (formID != 0 && !pngPath.empty()) {
+						g_iconPngByForm[formID] = pngPath;
+					}
+
+					pos = pq2;
+				}
+
+				SoulsLog::LineF("PrismaUI: loaded icon manifest (%zu entries)", g_iconPngByForm.size());
+				SKSE::log::info("PrismaUI: loaded icon manifest ({} entries)", g_iconPngByForm.size());
+			}
+
+			const std::string& get_manifest_png_for_item(RE::TESBoundObject* item)
+			{
+				static const std::string empty;
+				if (!item) {
+					return empty;
+				}
+
+				std::call_once(g_manifestOnce, load_icon_manifest);
+
+				RE::TESForm* form = item;
+				if (!form) {
+					return empty;
+				}
+
+				auto it = g_iconPngByForm.find(form->GetFormID());
+				if (it == g_iconPngByForm.end()) {
+					return empty;
+				}
+				return it->second;
 			}
 
 			// Display type: 0-9 weapon, 22-29 OCF keyword weapons, 10-16 light armor, 17 ammo, 18 book, 19 misc, 20 potion, 21 ingredient,
@@ -185,25 +293,6 @@ namespace SoulsLoot
 				return 19;
 			}
 
-			std::string get_icon_path(RE::TESBoundObject* item)
-			{
-				if (!item) return {};
-				RE::BSString path;
-				RE::TESTexture* tex = item->As<RE::TESTexture>();
-				if (tex && tex->textureName.size() > 0) {
-					tex->GetAsNormalFile(path);
-				} else if (item->IsArmor()) {
-					auto* bip = item->As<RE::TESBipedModelForm>();
-					if (bip && bip->inventoryIcons[0].textureName.size() > 0) {
-						bip->inventoryIcons[0].GetAsNormalFile(path);
-					}
-				}
-				if (path.empty()) return {};
-				std::string s(path.c_str());
-				for (char& c : s) if (c == '\\') c = '/';
-				return s;
-			}
-
 			std::string build_loot_json(const std::vector<RE::TESBoundObject*>& items, const std::vector<int>& counts)
 			{
 				std::string escaped;
@@ -217,7 +306,8 @@ namespace SoulsLoot
 					if (!name || !name[0]) name = "Item";
 					escape_json_string(name, escaped);
 					os << "{\"name\":\"" << escaped << "\",\"count\":" << counts[i] << ",\"type\":" << get_item_type(it);
-					std::string iconPath = get_icon_path(it);
+					const std::string& pngFromManifest = get_manifest_png_for_item(it);
+					std::string iconPath = pngFromManifest.empty() ? IconUtils::GetInventoryIconPath(it) : pngFromManifest;
 					if (!iconPath.empty()) {
 						escape_json_string(iconPath.c_str(), escaped);
 						os << ",\"iconPath\":\"" << escaped << '"';

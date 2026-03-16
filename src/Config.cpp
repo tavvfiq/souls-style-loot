@@ -18,6 +18,11 @@ namespace SoulsLoot
 			double s_dropChancePercent = 100.0;  // chance that corpse drops random loot (0-100%)
 			double s_tierDropChancePct[4] = { 100.0, 50.0, 25.0, 12.5 };  // common, uncommon, rare, legendary (%)
 			double s_typeDropChancePct[5] = { 100.0, 100.0, 100.0, 100.0, 100.0 };  // weapon, armor, ammo, misc, book (%)
+
+			int s_generateItemIconsMode = 0;  // 0=disabled, 1=run, 2=done
+			std::string s_texconvPath;
+			std::string s_iconOutputDir;
+			std::string s_iconManifestPath;
 			bool s_loaded = false;
 
 			void ReadIni()
@@ -42,6 +47,15 @@ namespace SoulsLoot
 					if (key == "SafetyKey") {
 						int v = 0;
 						if (std::istringstream(val) >> v) s_safetyKeyCode = v;
+					} else if (key == "GenerateItemIcons") {
+						int v = 0;
+						if (std::istringstream(val) >> v) s_generateItemIconsMode = v;
+					} else if (key == "TexconvPath") {
+						s_texconvPath = val;
+					} else if (key == "IconOutputDir") {
+						s_iconOutputDir = val;
+					} else if (key == "IconManifestPath") {
+						s_iconManifestPath = val;
 					} else if (key == "LootDisplaySeconds") {
 						double v = 0;
 						if (std::istringstream(val) >> v && v > 0) s_lootDisplaySeconds = v;
@@ -112,8 +126,12 @@ namespace SoulsLoot
 			s_loaded = true;
 			ReadIni();
 			ApplyPapyrusGlobals();
-			SoulsLog::LineF("Config: SafetyKey=%d, LootDisplaySeconds=%.1f, LootCycleDelay=%.1f, LootCloseKey=0x%X, DropChancePercent=%.1f", s_safetyKeyCode, s_lootDisplaySeconds, s_lootCycleDelaySeconds, s_lootCloseKeyCode, s_dropChancePercent);
-			SKSE::log::info("Config: SafetyKey={}, LootDisplaySeconds={}, LootCycleDelay={}, LootCloseKey=0x{:X}, DropChancePercent={}%", s_safetyKeyCode, s_lootDisplaySeconds, s_lootCycleDelaySeconds, s_lootCloseKeyCode, s_dropChancePercent);
+			SoulsLog::LineF(
+				"Config: SafetyKey=%d, LootDisplaySeconds=%.1f, LootCycleDelay=%.1f, LootCloseKey=0x%X, DropChancePercent=%.1f, GenerateItemIcons=%d",
+				s_safetyKeyCode, s_lootDisplaySeconds, s_lootCycleDelaySeconds, s_lootCloseKeyCode, s_dropChancePercent, s_generateItemIconsMode);
+			SKSE::log::info(
+				"Config: SafetyKey={}, LootDisplaySeconds={}, LootCycleDelay={}, LootCloseKey=0x{:X}, DropChancePercent={}%, GenerateItemIcons={}",
+				s_safetyKeyCode, s_lootDisplaySeconds, s_lootCycleDelaySeconds, s_lootCloseKeyCode, s_dropChancePercent, s_generateItemIconsMode);
 		}
 
 		int GetSafetyKeyCode()
@@ -151,6 +169,26 @@ namespace SoulsLoot
 		{
 			if (a_type < 0 || a_type > 4) return 100.0;
 			return s_typeDropChancePct[a_type];
+		}
+
+		int GetGenerateItemIconsMode()
+		{
+			return s_generateItemIconsMode;
+		}
+
+		const char* GetTexconvPath()
+		{
+			return s_texconvPath.empty() ? nullptr : s_texconvPath.c_str();
+		}
+
+		const char* GetIconOutputDir()
+		{
+			return s_iconOutputDir.empty() ? nullptr : s_iconOutputDir.c_str();
+		}
+
+		const char* GetIconManifestPath()
+		{
+			return s_iconManifestPath.empty() ? nullptr : s_iconManifestPath.c_str();
 		}
 	}
 }

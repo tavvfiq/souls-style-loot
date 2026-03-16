@@ -7,6 +7,18 @@ namespace SoulsLoot
 		/// Call once after kDataLoaded. Loads from INI and optional Papyrus globals (MCM).
 		void Load();
 
+		/// Generation mode for per-item icons: 0=disabled, 1=run generation, 2=done (cache only).
+		int GetGenerateItemIconsMode();
+
+		/// Optional path to texconv.exe (from DirectXTex) for DDS -> PNG conversion. Empty = disabled.
+		const char* GetTexconvPath();
+
+		/// Output directory for generated PNG icons (relative or absolute).
+		const char* GetIconOutputDir();
+
+		/// Path to JSON manifest describing generated icons.
+		const char* GetIconManifestPath();
+
 		/// Virtual key code for "open normal inventory" when held during corpse activate. 0 = disabled. Default 16 (Shift).
 		int GetSafetyKeyCode();
 

@@ -23,3 +23,11 @@ ArmorDropChance=85
 AmmoDropChance=90
 MiscDropChance=95
 BookDropChance=50
+
+; 0 = disabled, 1 = generate item icon manifest once (then you can run texconv externally), 2 = done
+GenerateItemIcons=0
+
+; Optional: used by your external DDS -> PNG workflow (or future in-plugin converter)
+;TexconvPath=Data\\Tools\\texconv.exe
+;IconOutputDir=Data\\PrismaUI\\views\\SoulsStyleLoot\\assets\\generated
+;IconManifestPath=Data\\PrismaUI\\views\\SoulsStyleLoot\\SoulsStyleLoot_ItemIcons.json

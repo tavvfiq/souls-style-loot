@@ -271,12 +271,21 @@
                 return ASSET_BY_TYPE[type] || ASSET_BY_TYPE[19];
             }
 
-            function setContent(name, type) {
+            function normalizeIconPath(p) {
+                if (!p) return '';
+                var s = String(p);
+                s = s.replace(/\\/g, '/');
+                // Our generator emits "SoulsStyleLoot/assets/..." but this file already lives under "SoulsStyleLoot/".
+                if (s.indexOf('SoulsStyleLoot/') === 0) s = s.substring('SoulsStyleLoot/'.length);
+                return s;
+            }
+
+            function setContent(name, type, iconPath) {
                 var nameEl = document.getElementById(NAME_ID);
                 var visualEl = document.getElementById(VISUAL_ID);
                 if (nameEl) nameEl.textContent = name;
                 if (visualEl) {
-                    var src = imageSrcForType(type);
+                    var src = normalizeIconPath(iconPath) || imageSrcForType(type);
                     visualEl.innerHTML = '<img src="' + escapeHtml(src) + '" alt="">';
                 }
             }
@@ -295,8 +304,9 @@
                 var item = items[index];
                 var name = (item && item.name) ? item.name : 'Item';
                 var type = (item && typeof item.type === 'number') ? item.type : 3;
+                var iconPath = (item && item.iconPath) ? String(item.iconPath) : '';
 
-                setContent(name, type);
+                setContent(name, type, iconPath);
                 if (index === items.length - 1 && requireActivateToClose) {
                     promptEl.innerHTML = getPromptHtml(promptType);
                     promptWrap.style.display = 'flex';
