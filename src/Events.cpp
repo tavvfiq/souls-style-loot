@@ -183,8 +183,8 @@ namespace SoulsLoot
 				continue;
 			}
 
-			// Filter: weapons, armor, ammo, misc, books (playable). Keys excluded like Papyrus.
-			if (item->IsWeapon() || item->IsArmor() || item->IsAmmo() || item->Is(RE::FormType::Misc) || item->Is(RE::FormType::Book)) {
+			// Filter: weapons, armor, ammo, misc, books, keys (playable). Quest items already skipped above.
+			if (item->IsWeapon() || item->IsArmor() || item->IsAmmo() || item->Is(RE::FormType::Misc) || item->Is(RE::FormType::Book) || item->Is(RE::FormType::Key)) {
 				if (item->GetPlayable()) {
 					validItems.push_back(item);
 				}

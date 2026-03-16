@@ -25,22 +25,31 @@
             max-width: 360px;
         }
         .panel-frame {
-            background: rgba(10, 10, 10, 0.88);
-            border: 1px solid #b8b4a8;
-            box-shadow: inset 0 0 0 1px rgba(184, 180, 168, 0.6);
+            /* Dark charcoal to match reference: very dark desaturated gray, marginally lighter top-left, darker bottom-right */
+            background-color: #141414;
+            background-image:
+                radial-gradient(ellipse 110% 75% at 22% 28%, rgba(31, 31, 31, 0.12) 0%, transparent 48%),
+                linear-gradient(152deg, #1a1a1a 0%, #161616 28%, #121212 55%, #0d0d0d 82%, #0a0a0a 100%);
+            /* Double-line border: outer thin faded line, inner prominent tarnished gold */
+            border: 1px solid rgba(190, 178, 145, 0.6);
+            box-shadow:
+                inset 0 0 0 1px rgba(168, 148, 100, 0.92),
+                0 0 14px rgba(168, 148, 100, 0.06);
             padding: 16px 20px 12px;
             width: 100%;
             position: relative;
         }
+        /* Corner L-shaped flourishes – slightly brighter than border */
         .panel-frame::before,
         .panel-frame::after {
             content: "";
             position: absolute;
-            width: 12px;
-            height: 12px;
-            border-color: #b8b4a8;
+            width: 14px;
+            height: 14px;
+            border-color: rgba(182, 165, 120, 0.95);
             border-style: solid;
             border-width: 0;
+            box-shadow: 0 0 8px rgba(168, 148, 100, 0.15);
         }
         .panel-frame::before {
             top: -1px;
@@ -57,12 +66,13 @@
         .panel-frame .corner-bot-left,
         .panel-frame .corner-bot-right {
             position: absolute;
-            width: 12px;
-            height: 12px;
-            border-color: #b8b4a8;
+            width: 14px;
+            height: 14px;
+            border-color: rgba(182, 165, 120, 0.95);
             border-style: solid;
             border-width: 0;
             bottom: -1px;
+            box-shadow: 0 0 8px rgba(168, 148, 100, 0.15);
         }
         .panel-frame .corner-bot-left {
             left: -1px;
@@ -73,6 +83,17 @@
             right: -1px;
             border-bottom-width: 2px;
             border-right-width: 2px;
+        }
+        .panel-frame {
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
+        }
+        .panel-frame.cycle-active {
+            animation: panelCycle 0.4s ease;
+        }
+        @keyframes panelCycle {
+            0% { transform: scale(1); box-shadow: inset 0 0 0 1px rgba(168, 148, 100, 0.92), 0 0 14px rgba(168, 148, 100, 0.06); }
+            50% { transform: scale(1.02); box-shadow: inset 0 0 0 1px rgba(168, 148, 100, 0.98), 0 0 20px rgba(168, 148, 100, 0.12); }
+            100% { transform: scale(1); box-shadow: inset 0 0 0 1px rgba(168, 148, 100, 0.92), 0 0 14px rgba(168, 148, 100, 0.06); }
         }
         .item-content {
             transition: opacity 0.22s ease;
@@ -197,6 +218,7 @@
                 19: 'assets/misc/misc1.png',
                 20: 'assets/ingestable/potion.png',
                 21: 'assets/alchemy/ingredient1.png',
+                55: 'assets/misc/key.png',
                 40: 'assets/armors/headgear_heavy.png',
                 41: 'assets/armors/cuirass_heavy.png',
                 42: 'assets/armors/gaunlets_heavy.png',
@@ -246,6 +268,9 @@
                 return ASSET_BY_TYPE[type] || ASSET_BY_TYPE[19];
             }
 
+            var PANEL_FRAME_CLASS = 'panel-frame';
+            var CYCLE_ACTIVE_CLASS = 'cycle-active';
+
             function showItem(index) {
                 var contentEl = document.getElementById(CONTENT_ID);
                 var nameEl = document.getElementById(NAME_ID);
@@ -263,6 +288,16 @@
 
                 contentEl.classList.remove('fade-out');
                 contentEl.classList.add('fade-in');
+
+                var panelFrame = contentEl.closest('.' + PANEL_FRAME_CLASS);
+                if (panelFrame) {
+                    panelFrame.classList.remove(CYCLE_ACTIVE_CLASS);
+                    void panelFrame.offsetWidth;
+                    panelFrame.classList.add(CYCLE_ACTIVE_CLASS);
+                    setTimeout(function() {
+                        panelFrame.classList.remove(CYCLE_ACTIVE_CLASS);
+                    }, 400);
+                }
             }
 
             function advanceCycle() {

@@ -180,6 +180,7 @@ namespace SoulsLoot
 				if (item->Is(RE::FormType::Book)) return 18;
 				if (item->Is(RE::FormType::AlchemyItem)) return 20;
 				if (item->Is(RE::FormType::Ingredient)) return 21;
+				if (item->Is(RE::FormType::Key)) return 55;
 				if (item->Is(RE::FormType::Misc)) return 19;
 				return 19;
 			}
