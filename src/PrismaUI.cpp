@@ -100,7 +100,7 @@ namespace SoulsLoot
 				return (cm->GetGamePadType() == RE::PC_GAMEPAD_TYPE::kOrbis) ? "controllerPs" : "controller";
 			}
 
-			// Display type: 0-9 weapon, 22-28 OCF keyword weapons, 10-16 light armor, 17 ammo, 18 book, 19 misc, 20 potion, 21 ingredient,
+			// Display type: 0-9 weapon, 22-29 OCF keyword weapons, 10-16 light armor, 17 ammo, 18 book, 19 misc, 20 potion, 21 ingredient,
 			// 40-46 heavy armor, 50-54 clothing
 			int get_item_type(RE::TESBoundObject* item)
 			{
@@ -116,6 +116,7 @@ namespace SoulsLoot
 					if (hasKw("ocf_weaptypequarterstaff2h")) return 26;
 					if (hasKw("ocf_weaptyperapier1h"))   return 27;
 					if (hasKw("ocf_weaptypescimitar1h")) return 28;
+					if (hasKw("ocf_weaptypewarhammer2h")) return 29;
 
 					auto* weap = item->As<RE::TESObjectWEAP>();
 					if (weap) {
