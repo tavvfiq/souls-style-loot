@@ -8,11 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: "EB Garamond", "Times New Roman", Georgia, serif;
             background: linear-gradient(180deg, #1a1510 0%, #0d0a08 100%);
@@ -23,16 +19,17 @@
         #loot-panel {
             position: fixed;
             left: 50%;
-            bottom: 24%;
-            transform: translateX(-50%);
-            min-width: 200px;
-            max-width: 300px;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            min-width: 280px;
+            max-width: 360px;
         }
         .panel-frame {
-            background: rgba(10, 10, 10, 0.78);
+            background: rgba(10, 10, 10, 0.88);
             border: 1px solid #b8b4a8;
             box-shadow: inset 0 0 0 1px rgba(184, 180, 168, 0.6);
-            padding: 8px 12px 10px;
+            padding: 16px 20px 12px;
+            width: 100%;
             position: relative;
         }
         .panel-frame::before,
@@ -77,64 +74,221 @@
             border-bottom-width: 2px;
             border-right-width: 2px;
         }
-        #loot-list {
-            display: flex;
-            flex-direction: column;
-            gap: 0;
+        .item-content {
+            transition: opacity 0.22s ease;
         }
-        .loot-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 4px 2px 6px;
-            font-size: 14px;
+        .item-content.fade-out { opacity: 0; }
+        .item-content.fade-in { opacity: 1; }
+        .item-name {
+            text-align: center;
+            font-size: 18px;
+            font-weight: 600;
             letter-spacing: 0.03em;
             color: #fff;
             text-shadow: 0 1px 2px rgba(0,0,0,0.9);
+            margin-bottom: 12px;
+            min-height: 1.4em;
+            padding: 0 8px 10px;
+            border-bottom: 1px solid rgba(184, 180, 168, 0.85);
         }
-        .loot-row .item-name {
-            flex: 1;
-            text-align: left;
-            white-space: nowrap;
+        .item-visual {
+            width: 100%;
+            height: 120px;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #8a8680;
+            font-size: 13px;
             overflow: hidden;
-            text-overflow: ellipsis;
-            padding-right: 8px;
         }
-        .loot-row .item-count {
-            flex-shrink: 0;
-            color: #e0dcd4;
+        .item-visual img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        .prompt-bar {
+            text-align: center;
+            padding: 8px 0 4px;
+            border-top: 1px solid #6a6660;
+            font-size: 13px;
+            color: #c9c4b8;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .prompt-bar .key-cap {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 26px;
+            height: 24px;
+            padding: 0 6px;
+            background: rgba(30, 30, 30, 0.95);
+            border: 1px solid rgba(220, 218, 212, 0.9);
+            font-size: 13px;
             font-weight: 600;
+            color: #e8e4dc;
+            font-family: inherit;
+            margin-right: 4px;
         }
-        .loot-row + .loot-row {
-            border-top: 1px solid #8a8680;
-            box-shadow: 0 1px 0 0 rgba(184, 180, 168, 0.4);
+        .prompt-bar .action-text {
+            font-size: 13px;
+            font-weight: 500;
+            color: #c9c4b8;
+            letter-spacing: 0.02em;
         }
     </style>
 </head>
 <body>
     <div id="loot-panel">
         <div class="panel-frame">
-            <span class="corner-bot-left"></span>
-            <span class="corner-bot-right"></span>
-            <div id="loot-list">
-                <div class="loot-row">
-                    <span class="item-name">Steel Greatsword</span>
-                    <span class="item-count">x1</span>
-                </div>
-                <div class="loot-row">
-                    <span class="item-name">Steel Dagger</span>
-                    <span class="item-count">x1</span>
-                </div>
-                <div class="loot-row">
-                    <span class="item-name">Nord Mail Shirt</span>
-                    <span class="item-count">x1</span>
-                </div>
-                <div class="loot-row">
-                    <span class="item-name">Gold</span>
-                    <span class="item-count">x42</span>
-                </div>
+            <span class="corner-bot-left" aria-hidden="true"></span>
+            <span class="corner-bot-right" aria-hidden="true"></span>
+            <div class="item-content fade-in" id="loot-item-content">
+                <div class="item-name" id="loot-item-name">—</div>
+                <div class="item-visual" id="loot-item-visual"></div>
+            </div>
+            <div class="prompt-bar" id="loot-prompt-wrap" style="display: none;">
+                <span class="key-cap">E</span>
+                <span class="action-text">: OK</span>
             </div>
         </div>
     </div>
+    <script>
+        (function() {
+            var CONTENT_ID = 'loot-item-content';
+            var NAME_ID = 'loot-item-name';
+            var VISUAL_ID = 'loot-item-visual';
+            var PROMPT_WRAP_ID = 'loot-prompt-wrap';
+            var FADE_MS = 220;
+            var CYCLE_DELAY_MS = 2000;
+
+            // Display types: 0-9 weapon, 22-28 OCF keyword weapons, 10-16 light armor, 17 ammo, 18 book, 19 misc, 20 potion, 21 ingredient,
+            // 40-46 heavy armor, 50-54 clothing
+            var ASSET_BY_TYPE = {
+                0: 'assets/weapons/sword.png',
+                1: 'assets/weapons/dagger.png',
+                2: 'assets/weapons/waraxe.png',
+                3: 'assets/weapons/mace.png',
+                4: 'assets/weapons/greatsword.png',
+                5: 'assets/weapons/battleaxe.png',
+                6: 'assets/weapons/bow.png',
+                7: 'assets/weapons/staff.png',
+                8: 'assets/weapons/crossbow.png',
+                22: 'assets/weapons/katana_1h.png',
+                23: 'assets/weapons/katana_2h.png',
+                24: 'assets/weapons/spear.png',
+                25: 'assets/weapons/halberd.png',
+                26: 'assets/weapons/quarterstaff.png',
+                27: 'assets/weapons/rapier.png',
+                28: 'assets/weapons/scimitar.png',
+                10: 'assets/armors/headgear_light.png',
+                11: 'assets/armors/cuirass_light.png',
+                12: 'assets/armors/gaunlets_light.png',
+                13: 'assets/armors/boots_light.png',
+                14: 'assets/armors/shield_light.png',
+                15: 'assets/jewelry/ring.png',
+                16: 'assets/jewelry/amulet.png',
+                17: 'assets/weapons/arrows.png',
+                18: 'assets/books/book1.png',
+                19: 'assets/misc/misc1.png',
+                20: 'assets/ingestable/potion.png',
+                21: 'assets/alchemy/ingredient1.png',
+                40: 'assets/armors/headgear_heavy.png',
+                41: 'assets/armors/cuirass_heavy.png',
+                42: 'assets/armors/gaunlets_heavy.png',
+                43: 'assets/armors/boots_heavy.png',
+                44: 'assets/armors/shield_heavy.png',
+                45: 'assets/jewelry/ring.png',
+                46: 'assets/jewelry/amulet.png',
+                50: 'assets/clothing/headwear.png',
+                51: 'assets/clothing/clothing.png',
+                52: 'assets/clothing/gloves.png',
+                53: 'assets/clothing/footwear.png',
+                54: 'assets/clothing/robe.png'
+            };
+            // Types with multiple images: pick one at random per display
+            var ASSET_OPTIONS = {
+                18: ['assets/books/book1.png', 'assets/books/book2.png', 'assets/books/book3.png'],
+                19: ['assets/misc/misc1.png', 'assets/misc/misc2.png', 'assets/misc/misc3.png'],
+                21: ['assets/alchemy/ingredient1.png', 'assets/alchemy/ingredient2.png', 'assets/alchemy/ingredient3.png']
+            };
+
+            function escapeHtml(text) {
+                var div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            var MOCK_ITEMS = [
+                { name: 'Steel Greatsword', type: 4 },
+                { name: 'Nord Mail Cuirass', type: 11 },
+                { name: 'Daedric Helm', type: 40 },
+                { name: 'Farm Clothes', type: 51 },
+                { name: 'Novice Robes', type: 54 },
+                { name: 'Steel Arrow', type: 17 },
+                { name: 'Phantom Bloody Finger', type: 19 },
+                { name: 'The Book of the Dragonborn', type: 18 },
+                { name: 'Health Potion', type: 20 },
+                { name: 'Snowberries', type: 21 },
+                { name: 'Silver Ring', type: 15 }
+            ];
+
+            function imageSrcForType(t) {
+                var type = parseInt(t, 10);
+                if (isNaN(type) || type < 0) type = 19;
+                var opts = ASSET_OPTIONS[type];
+                if (opts && opts.length > 0)
+                    return opts[Math.floor(Math.random() * opts.length)];
+                return ASSET_BY_TYPE[type] || ASSET_BY_TYPE[19];
+            }
+
+            function showItem(index) {
+                var contentEl = document.getElementById(CONTENT_ID);
+                var nameEl = document.getElementById(NAME_ID);
+                var visualEl = document.getElementById(VISUAL_ID);
+                var promptWrap = document.getElementById(PROMPT_WRAP_ID);
+                if (!contentEl || !nameEl || !visualEl || !promptWrap) return;
+
+                var item = MOCK_ITEMS[index];
+                nameEl.textContent = item.name;
+                var src = imageSrcForType(item.type);
+                visualEl.innerHTML = '<img src="' + escapeHtml(src) + '" alt="">';
+
+                var isLast = index === MOCK_ITEMS.length - 1;
+                promptWrap.style.display = isLast ? 'flex' : 'none';
+
+                contentEl.classList.remove('fade-out');
+                contentEl.classList.add('fade-in');
+            }
+
+            function advanceCycle() {
+                window._mockIndex = (window._mockIndex === undefined ? -1 : window._mockIndex) + 1;
+                var current = window._mockIndex;
+
+                if (current >= MOCK_ITEMS.length) {
+                    showItem(MOCK_ITEMS.length - 1);
+                    return;
+                }
+
+                var contentEl = document.getElementById(CONTENT_ID);
+                contentEl.classList.remove('fade-in');
+                contentEl.classList.add('fade-out');
+
+                setTimeout(function() {
+                    showItem(current);
+                    if (current < MOCK_ITEMS.length - 1) {
+                        window._cycleTimer = setTimeout(advanceCycle, CYCLE_DELAY_MS);
+                    }
+                }, FADE_MS);
+            }
+
+            showItem(0);
+            window._mockIndex = 0;
+            window._cycleTimer = setTimeout(advanceCycle, CYCLE_DELAY_MS);
+        })();
+    </script>
 </body>
 </html>

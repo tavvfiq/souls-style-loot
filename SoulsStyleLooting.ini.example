@@ -1,6 +1,8 @@
 ; Souls Style Looting - copy to: Documents\My Games\Skyrim Special Edition\SKSE\SoulsStyleLooting.ini
 ; SafetyKey: Virtual key code held to open normal container menu. 0 = disabled. 16=Shift, 17=Ctrl, 18=Alt. MCM overrides.
-; LootDisplaySeconds: How long the loot popup stays visible (2-15).
+; LootDisplaySeconds: Fallback display time (2-15). Used when not cycling.
+; LootCycleDelaySeconds: Seconds each item is shown before cycling to the next (0.5-10). Default 2.0.
+; LootCloseKeyCode: Virtual key to close loot UI after last item (activate key). Default 0x45 (E).
 ; DropChancePercent: chance that a corpse drops any random loot (0-100). MCM DarkSoulsPickUpChances overrides.
 ; Tier: common -> legendary. Type: weapon, armor, ammo, misc, book. All values 0-100 (percentage).
 ;
@@ -9,6 +11,8 @@
 [Settings]
 SafetyKey=16
 LootDisplaySeconds=5.0
+LootCycleDelaySeconds=2.0
+LootCloseKeyCode=69
 DropChancePercent=75
 Tier0DropChance=100
 Tier1DropChance=65

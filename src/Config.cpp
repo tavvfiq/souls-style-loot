@@ -13,6 +13,8 @@ namespace SoulsLoot
 		{
 			int s_safetyKeyCode = 16;   // VK_SHIFT
 			double s_lootDisplaySeconds = 5.0;
+			double s_lootCycleDelaySeconds = 2.0;
+			int s_lootCloseKeyCode = 0x45;  // VK 'E' (activate)
 			double s_dropChancePercent = 100.0;  // chance that corpse drops random loot (0-100%)
 			double s_tierDropChancePct[4] = { 100.0, 50.0, 25.0, 12.5 };  // common, uncommon, rare, legendary (%)
 			double s_typeDropChancePct[5] = { 100.0, 100.0, 100.0, 100.0, 100.0 };  // weapon, armor, ammo, misc, book (%)
@@ -43,6 +45,12 @@ namespace SoulsLoot
 					} else if (key == "LootDisplaySeconds") {
 						double v = 0;
 						if (std::istringstream(val) >> v && v > 0) s_lootDisplaySeconds = v;
+					} else if (key == "LootCycleDelaySeconds") {
+						double v = 0;
+						if (std::istringstream(val) >> v && v > 0) s_lootCycleDelaySeconds = v;
+					} else if (key == "LootCloseKeyCode") {
+						int v = 0;
+						if (std::istringstream(val) >> v) s_lootCloseKeyCode = v;
 					} else if (key == "DropChancePercent") {
 						double v = 0;
 						if (std::istringstream(val) >> v) { v = (v < 0) ? 0 : (v > 100 ? 100 : v); s_dropChancePercent = v; }
@@ -104,8 +112,8 @@ namespace SoulsLoot
 			s_loaded = true;
 			ReadIni();
 			ApplyPapyrusGlobals();
-			SoulsLog::LineF("Config: SafetyKey=%d, LootDisplaySeconds=%.1f, DropChancePercent=%.1f", s_safetyKeyCode, s_lootDisplaySeconds, s_dropChancePercent);
-			SKSE::log::info("Config: SafetyKey={}, LootDisplaySeconds={}, DropChancePercent={}%", s_safetyKeyCode, s_lootDisplaySeconds, s_dropChancePercent);
+			SoulsLog::LineF("Config: SafetyKey=%d, LootDisplaySeconds=%.1f, LootCycleDelay=%.1f, LootCloseKey=0x%X, DropChancePercent=%.1f", s_safetyKeyCode, s_lootDisplaySeconds, s_lootCycleDelaySeconds, s_lootCloseKeyCode, s_dropChancePercent);
+			SKSE::log::info("Config: SafetyKey={}, LootDisplaySeconds={}, LootCycleDelay={}, LootCloseKey=0x{:X}, DropChancePercent={}%", s_safetyKeyCode, s_lootDisplaySeconds, s_lootCycleDelaySeconds, s_lootCloseKeyCode, s_dropChancePercent);
 		}
 
 		int GetSafetyKeyCode()
@@ -116,6 +124,16 @@ namespace SoulsLoot
 		double GetLootDisplaySeconds()
 		{
 			return s_lootDisplaySeconds;
+		}
+
+		double GetLootCycleDelaySeconds()
+		{
+			return s_lootCycleDelaySeconds;
+		}
+
+		int GetLootCloseKeyCode()
+		{
+			return s_lootCloseKeyCode;
 		}
 
 		double GetDropChancePercent()

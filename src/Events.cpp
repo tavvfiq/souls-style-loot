@@ -177,10 +177,9 @@ namespace SoulsLoot
 				continue;
 			}
 
-			// Quest items (by keyword): always include so they are always picked up
+			// Quest items (by keyword): always include in loot but do not put in random pool
 			if (is_quest_item(item)) {
 				questItems.push_back(item);
-				validItems.push_back(item);
 				continue;
 			}
 
