@@ -4,6 +4,7 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <Windows.h>
 
 namespace SoulsLoot
 {
@@ -27,10 +28,19 @@ namespace SoulsLoot
 
 			void ReadIni()
 			{
-				auto logDir = SKSE::log::log_directory();
-				if (!logDir) return;
-				std::ifstream f(*logDir / "SoulsStyleLooting.ini");
-				if (!f) return;
+				auto pluginDir = Config::GetPluginDirectory();
+				if (!pluginDir || pluginDir->empty()) {
+					SoulsLog::Line("Config: plugin directory not available; INI not read");
+					SKSE::log::warn("Config: could not resolve Data/SKSE/Plugins path; SoulsStyleLooting.ini not read");
+					return;
+				}
+				auto iniPath = *pluginDir / "SoulsStyleLooting.ini";
+				std::ifstream f(iniPath);
+				if (!f) {
+					SoulsLog::LineF("Config: could not open %s; using defaults", iniPath.string().c_str());
+					SKSE::log::info("Config: INI not found at {} (place SoulsStyleLooting.ini in Data/SKSE/Plugins); using defaults", iniPath.string());
+					return;
+				}
 				std::string line;
 				while (std::getline(f, line)) {
 					auto start = line.find_first_not_of(" \t\r\n");
@@ -169,6 +179,17 @@ namespace SoulsLoot
 		{
 			if (a_type < 0 || a_type > 4) return 100.0;
 			return s_typeDropChancePct[a_type];
+		}
+
+		std::optional<std::filesystem::path> GetPluginDirectory()
+		{
+			HMODULE hMod = GetModuleHandleW(L"SoulsStyleLooting.dll");
+			if (!hMod) return std::nullopt;
+			wchar_t buf[MAX_PATH];
+			if (GetModuleFileNameW(hMod, buf, MAX_PATH) == 0) return std::nullopt;
+			std::filesystem::path p(buf);
+			p = p.remove_filename();
+			return p;
 		}
 
 		int GetGenerateItemIconsMode()

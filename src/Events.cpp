@@ -184,7 +184,7 @@ namespace SoulsLoot
 			}
 
 			// Filter: weapons, armor, ammo, misc, books, keys (playable). Quest items already skipped above.
-			if (item->IsWeapon() || item->IsArmor() || item->IsAmmo() || item->Is(RE::FormType::Misc) || item->Is(RE::FormType::Book) || item->Is(RE::FormType::Key)) {
+			if (item->IsWeapon() || item->IsArmor() || item->IsAmmo() || item->Is(RE::FormType::Misc) || item->Is(RE::FormType::Book) || item->IsKey()) {
 				if (item->GetPlayable()) {
 					validItems.push_back(item);
 				}
@@ -212,8 +212,11 @@ namespace SoulsLoot
 		finalLoot.goldAmount = totalGold;
 
 		for (RE::TESBoundObject* qi : questItems) {
+			if (!qi) continue;
+			int qty = inventory[qi].first;
+			if (qty <= 0) continue;
 			finalLoot.items.push_back(qi);
-			finalLoot.counts.push_back(inventory[qi].first);
+			finalLoot.counts.push_back(qty);
 		}
 
 		std::unordered_set<RE::TESBoundObject*> alreadyAdded(finalLoot.items.begin(), finalLoot.items.end());
@@ -240,9 +243,12 @@ namespace SoulsLoot
 			const size_t maxDrops = candidates.size() < 3u ? candidates.size() : 3u;
 			for (size_t i = 0; i < maxDrops; i++) {
 				RE::TESBoundObject* rolledItem = candidates[i];
+				if (!rolledItem) continue;
+				int qty = inventory[rolledItem].first;
+				if (qty <= 0) continue;
 				if (alreadyAdded.insert(rolledItem).second) {
 					finalLoot.items.push_back(rolledItem);
-					finalLoot.counts.push_back(inventory[rolledItem].first);
+					finalLoot.counts.push_back(qty);
 				}
 			}
 		}
@@ -308,25 +314,37 @@ namespace SoulsLoot
 		LootDrop loot;
 		bool haveLoot = LootManager::GetSingleton()->GetLoot(target->GetFormID(), loot);
 		if (haveLoot) {
-			SoulsLog::LineF("Activate: corpse %08X - HAVE LOOT (%u items), blocking menu", target->GetFormID(), static_cast<unsigned>(loot.items.size()));
-			SKSE::log::info("Activate corpse {:08X}: have loot ({} items), blocking menu and showing UI", target->GetFormID(), loot.items.size());
-
-			// Transfer the items (gold was already given on death)
-			for (size_t i = 0; i < loot.items.size(); i++) {
-				player->AddObjectToContainer(loot.items[i], nullptr, loot.counts[i], nullptr);
+			// Build filtered lists: skip null items and count <= 0 so we never transfer or show a ghost "Item" row. Tiers from same GetItemTier used when rolling.
+			std::vector<RE::TESBoundObject*> itemsCopy;
+			std::vector<int> countsCopy;
+			std::vector<int> tiersCopy;
+			itemsCopy.reserve(loot.items.size());
+			countsCopy.reserve(loot.counts.size());
+			tiersCopy.reserve(loot.items.size());
+			for (size_t i = 0; i < loot.items.size() && i < loot.counts.size(); i++) {
+				if (!loot.items[i] || loot.counts[i] <= 0) continue;
+				itemsCopy.push_back(loot.items[i]);
+				countsCopy.push_back(loot.counts[i]);
+				tiersCopy.push_back(GetItemTier(loot.items[i]));
 			}
 
-			std::vector<RE::TESBoundObject*> itemsCopy = loot.items;
-			std::vector<int> countsCopy = loot.counts;
+			SoulsLog::LineF("Activate: corpse %08X - HAVE LOOT (%u items), blocking menu", target->GetFormID(), static_cast<unsigned>(itemsCopy.size()));
+			SKSE::log::info("Activate corpse {:08X}: have loot ({} items), blocking menu and showing UI", target->GetFormID(), itemsCopy.size());
+
+			// Transfer the items (gold was already given on death)
+			for (size_t i = 0; i < itemsCopy.size(); i++) {
+				player->AddObjectToContainer(itemsCopy[i], nullptr, countsCopy[i], nullptr);
+			}
+
 			if (auto* task = SKSE::GetTaskInterface()) {
-				task->AddTask([itemsCopy, countsCopy]() {
+				task->AddTask([itemsCopy, countsCopy, tiersCopy]() {
 					if (auto* uiQueue = RE::UIMessageQueue::GetSingleton()) {
 						uiQueue->AddMessage(RE::BSFixedString(RE::ContainerMenu::MENU_NAME), RE::UI_MESSAGE_TYPE::kForceHide, nullptr);
 					}
-					SoulsLoot::PrismaUI::ShowLoot(itemsCopy, countsCopy);
+					SoulsLoot::PrismaUI::ShowLoot(itemsCopy, countsCopy, tiersCopy);
 				});
 			} else {
-				SoulsLoot::PrismaUI::ShowLoot(loot.items, loot.counts);
+				SoulsLoot::PrismaUI::ShowLoot(itemsCopy, countsCopy, tiersCopy);
 			}
 			RE::PlaySound("UISkillsLevelUp");
 			// Remove Papyrus-style loot effect spell from corpse (same as Papyrus RemoveSpell when looted)

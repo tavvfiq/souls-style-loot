@@ -1,9 +1,15 @@
 #pragma once
 
+#include <filesystem>
+#include <optional>
+
 namespace SoulsLoot
 {
 	namespace Config
 	{
+		/// Plugin directory (Data/SKSE/Plugins when installed). Empty if unresolved.
+		std::optional<std::filesystem::path> GetPluginDirectory();
+
 		/// Call once after kDataLoaded. Loads from INI and optional Papyrus globals (MCM).
 		void Load();
 

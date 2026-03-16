@@ -41,6 +41,8 @@ namespace SoulsLog
 	{
 		if (auto logDir = SKSE::log::log_directory()) {
 			s_logPath = *logDir / "SoulsStyleLooting.log";
+			// Replace log on every run (truncate); subsequent Line() calls append
+			{ std::ofstream clear(s_logPath, std::ios::out | std::ios::trunc); }
 			Line("SoulsStyleLooting: log init");
 			try {
 				auto logger = spdlog::basic_logger_mt("SoulsStyleLooting", s_logPath.string());

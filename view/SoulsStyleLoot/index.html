@@ -12,6 +12,7 @@
         body {
             font-family: "EB Garamond", "Times New Roman", Georgia, serif;
             background: transparent;
+            min-height: 100vh;
             color: #fff;
             user-select: none;
             pointer-events: none;
@@ -24,7 +25,8 @@
             min-width: 280px;
             max-width: 360px;
             opacity: 0;
-            transition: opacity 0.25s ease;
+            transition: opacity 0.22s ease;
+            pointer-events: auto;
         }
         #loot-panel.visible { opacity: 1; }
         .panel-frame {
@@ -43,14 +45,6 @@
             width: 100%;
             position: relative;
             transition: transform 0.25s ease, box-shadow 0.25s ease;
-        }
-        .panel-frame.cycle-active {
-            animation: panelCycle 0.4s ease;
-        }
-        @keyframes panelCycle {
-            0% { transform: scale(1); box-shadow: inset 0 0 0 1px rgba(168, 148, 100, 0.92), 0 0 14px rgba(168, 148, 100, 0.06); }
-            50% { transform: scale(1.02); box-shadow: inset 0 0 0 1px rgba(168, 148, 100, 0.98), 0 0 20px rgba(168, 148, 100, 0.12); }
-            100% { transform: scale(1); box-shadow: inset 0 0 0 1px rgba(168, 148, 100, 0.92), 0 0 14px rgba(168, 148, 100, 0.06); }
         }
         /* Corner L-shaped flourishes – slightly brighter than border for emphasis */
         .panel-frame::before,
@@ -97,11 +91,30 @@
             border-bottom-width: 2px;
             border-right-width: 2px;
         }
-        .item-content {
-            transition: opacity 0.22s ease;
+        .panel-frame.cycle-active {
+            animation: panelCycle 0.4s ease;
         }
-        .item-content.fade-out { opacity: 0; }
-        .item-content.fade-in { opacity: 1; }
+        @keyframes panelCycle {
+            0% { transform: scale(1); box-shadow: inset 0 0 0 1px rgba(168, 148, 100, 0.92), 0 0 14px rgba(168, 148, 100, 0.06); }
+            50% { transform: scale(1.02); box-shadow: inset 0 0 0 1px rgba(168, 148, 100, 0.98), 0 0 20px rgba(168, 148, 100, 0.12); }
+            100% { transform: scale(1); box-shadow: inset 0 0 0 1px rgba(168, 148, 100, 0.92), 0 0 14px rgba(168, 148, 100, 0.06); }
+        }
+        .item-content { }
+        .item-rarity {
+            text-align: center;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+            min-height: 1.2em;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.9);
+        }
+        .item-rarity.rarity-common { color: #9ca3af; }
+        .item-rarity.rarity-uncommon { color: #4ade80; }
+        .item-rarity.rarity-rare { color: #60a5fa; }
+        .item-rarity.rarity-epic { color: #c084fc; }
+        .item-rarity.rarity-legendary { color: #fbbf24; }
         .item-name {
             text-align: center;
             font-size: 18px;
@@ -116,19 +129,26 @@
         }
         .item-visual {
             width: 100%;
-            height: 120px;
             margin-bottom: 14px;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
+            gap: 6px;
             color: #8a8680;
             font-size: 13px;
             overflow: hidden;
         }
         .item-visual img {
             max-width: 100%;
-            max-height: 100%;
+            max-height: 100px;
             object-fit: contain;
+        }
+        .item-count {
+            font-size: 18px;
+            font-weight: 600;
+            color: #e8e4dc;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.9);
         }
         .prompt-bar {
             text-align: center;
@@ -170,7 +190,8 @@
         <div class="panel-frame">
             <span class="corner-bot-left" aria-hidden="true"></span>
             <span class="corner-bot-right" aria-hidden="true"></span>
-            <div class="item-content fade-in" id="loot-item-content">
+            <div class="item-content" id="loot-item-content">
+                <div class="item-rarity" id="loot-item-rarity"></div>
                 <div class="item-name" id="loot-item-name">—</div>
                 <div class="item-visual" id="loot-item-visual"></div>
             </div>
@@ -183,6 +204,7 @@
         (function() {
             const PANEL_ID = 'loot-panel';
             const CONTENT_ID = 'loot-item-content';
+            const RARITY_ID = 'loot-item-rarity';
             const NAME_ID = 'loot-item-name';
             const VISUAL_ID = 'loot-item-visual';
             const PROMPT_ID = 'loot-prompt';
@@ -194,58 +216,7 @@
                 controller: { key: 'A', action: ': OK' },
                 controllerPs: { key: '▵', action: ': OK' }
             };
-            // Display types: 0-9 weapon, 22-28 OCF keyword weapons, 10-16 light armor, 17 ammo, 18 book, 19 misc, 20 potion, 21 ingredient,
-            // 40-46 heavy armor, 50-54 clothing
-            var ASSET_BY_TYPE = {
-                0: 'assets/weapons/sword.png',
-                1: 'assets/weapons/dagger.png',
-                2: 'assets/weapons/waraxe.png',
-                3: 'assets/weapons/mace.png',
-                4: 'assets/weapons/greatsword.png',
-                5: 'assets/weapons/battleaxe.png',
-                6: 'assets/weapons/bow.png',
-                7: 'assets/weapons/staff.png',
-                8: 'assets/weapons/crossbow.png',
-                22: 'assets/weapons/katana_1h.png',
-                23: 'assets/weapons/katana_2h.png',
-                24: 'assets/weapons/spear.png',
-                25: 'assets/weapons/halberd.png',
-                26: 'assets/weapons/quarterstaff.png',
-                27: 'assets/weapons/rapier.png',
-                28: 'assets/weapons/scimitar.png',
-                29: 'assets/weapons/warhammer.png',
-                10: 'assets/armors/headgear_light.png',
-                11: 'assets/armors/cuirass_light.png',
-                12: 'assets/armors/gaunlets_light.png',
-                13: 'assets/armors/boots_light.png',
-                14: 'assets/armors/shield_light.png',
-                15: 'assets/jewelry/ring.png',
-                16: 'assets/jewelry/amulet.png',
-                17: 'assets/weapons/arrows.png',
-                18: 'assets/books/book1.png',
-                19: 'assets/misc/misc1.png',
-                20: 'assets/ingestable/potion.png',
-                55: 'assets/misc/key.png',
-                21: 'assets/alchemy/ingredient1.png',
-                40: 'assets/armors/headgear_heavy.png',
-                41: 'assets/armors/cuirass_heavy.png',
-                42: 'assets/armors/gaunlets_heavy.png',
-                43: 'assets/armors/boots_heavy.png',
-                44: 'assets/armors/shield_heavy.png',
-                45: 'assets/jewelry/ring.png',
-                46: 'assets/jewelry/amulet.png',
-                50: 'assets/clothing/headwear.png',
-                51: 'assets/clothing/clothing.png',
-                52: 'assets/clothing/gloves.png',
-                53: 'assets/clothing/footwear.png',
-                54: 'assets/clothing/robe.png'
-            };
-            // Types with multiple images: pick one at random per display
-            var ASSET_OPTIONS = {
-                18: ['assets/books/book1.png', 'assets/books/book2.png', 'assets/books/book3.png'],
-                19: ['assets/misc/misc1.png', 'assets/misc/misc2.png', 'assets/misc/misc3.png'],
-                21: ['assets/alchemy/ingredient1.png', 'assets/alchemy/ingredient2.png', 'assets/alchemy/ingredient3.png']
-            };
+            var DEFAULT_ICON = 'assets/misc/misc1.png';
             let cycleTimer = null;
             let currentIndex = 0;
             let items = [];
@@ -262,15 +233,6 @@
                 div.textContent = text;
                 return div.innerHTML;
             }
-            function imageSrcForType(t) {
-                var type = parseInt(t, 10);
-                if (isNaN(type) || type < 0) type = 19;
-                var opts = ASSET_OPTIONS[type];
-                if (opts && opts.length > 0)
-                    return opts[Math.floor(Math.random() * opts.length)];
-                return ASSET_BY_TYPE[type] || ASSET_BY_TYPE[19];
-            }
-
             function normalizeIconPath(p) {
                 if (!p) return '';
                 var s = String(p);
@@ -280,13 +242,23 @@
                 return s;
             }
 
-            function setContent(name, type, iconPath) {
+            var RARITY_LABELS = { common: 'Common', uncommon: 'Uncommon', rare: 'Rare', epic: 'Epic', legendary: 'Legendary' };
+            function setContent(name, iconPath, rarity, count) {
                 var nameEl = document.getElementById(NAME_ID);
                 var visualEl = document.getElementById(VISUAL_ID);
+                var rarityEl = document.getElementById(RARITY_ID);
                 if (nameEl) nameEl.textContent = name;
                 if (visualEl) {
-                    var src = normalizeIconPath(iconPath) || imageSrcForType(type);
-                    visualEl.innerHTML = '<img src="' + escapeHtml(src) + '" alt="">';
+                    var src = normalizeIconPath(iconPath) || DEFAULT_ICON;
+                    var n = (count != null && count > 0) ? Math.floor(Number(count)) : 1;
+                    visualEl.innerHTML = '<img src="' + escapeHtml(src) + '" alt="">' +
+                        '<span class="item-count">' + escapeHtml('×' + n) + '</span>';
+                }
+                if (rarityEl) {
+                    var key = (rarity && String(rarity).trim()) ? String(rarity).toLowerCase() : 'common';
+                    if (!RARITY_LABELS[key]) key = 'common';
+                    rarityEl.textContent = RARITY_LABELS[key];
+                    rarityEl.className = 'item-rarity rarity-' + key;
                 }
             }
 
@@ -303,10 +275,11 @@
 
                 var item = items[index];
                 var name = (item && item.name) ? item.name : 'Item';
-                var type = (item && typeof item.type === 'number') ? item.type : 3;
                 var iconPath = (item && item.iconPath) ? String(item.iconPath) : '';
+                var rarity = (item && item.rarity != null) ? String(item.rarity) : 'common';
+                var count = (item && item.count != null) ? item.count : 1;
 
-                setContent(name, type, iconPath);
+                setContent(name, iconPath, rarity, count);
                 if (index === items.length - 1 && requireActivateToClose) {
                     promptEl.innerHTML = getPromptHtml(promptType);
                     promptWrap.style.display = 'flex';
@@ -314,8 +287,6 @@
                     promptEl.innerHTML = '';
                     promptWrap.style.display = 'none';
                 }
-                contentEl.classList.remove('fade-out');
-                if (!skipFadeIn) contentEl.classList.add('fade-in');
                 panel.classList.add('visible');
 
                 var panelFrame = contentEl.closest('.' + PANEL_FRAME_CLASS);
@@ -333,7 +304,7 @@
                 currentIndex++;
                 if (currentIndex >= items.length) {
                     if (requireActivateToClose) {
-                        showItem(items.length - 1, false);
+                        // Already showing last item from previous step; only show prompt, no extra showItem (avoids duplicate pulse)
                         var promptEl = document.getElementById(PROMPT_ID);
                         if (promptEl) promptEl.innerHTML = getPromptHtml(promptType);
                         document.getElementById(PROMPT_WRAP_ID).style.display = 'flex';
@@ -343,9 +314,8 @@
                     }
                     return;
                 }
-                var contentEl = document.getElementById(CONTENT_ID);
-                contentEl.classList.remove('fade-in');
-                contentEl.classList.add('fade-out');
+                var panel = document.getElementById(PANEL_ID);
+                if (panel) panel.classList.remove('visible');
                 setTimeout(function() {
                     if (currentIndex >= items.length) return;
                     showItem(currentIndex, false);

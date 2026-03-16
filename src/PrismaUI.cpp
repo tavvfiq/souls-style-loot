@@ -21,6 +21,7 @@
 #include <thread>
 #include <fstream>
 #include <unordered_map>
+#include <cctype>
 
 namespace SoulsLoot
 {
@@ -39,6 +40,28 @@ namespace SoulsLoot
 			// Map of formID -> PNG path (relative, e.g. SoulsStyleLoot/assets/generated/...)
 			std::unordered_map<RE::FormID, std::string> g_iconPngByForm;
 			std::once_flag g_manifestOnce;
+
+			// Keyword EditorID -> icon path (loaded from SoulsStyleLoot_TypeIcons.json). First matching keyword on item wins.
+			std::unordered_map<std::string, std::string> g_keywordIconPath;
+			std::once_flag g_typeIconsOnce;
+			static constexpr const char* DEFAULT_TYPE_ICON = "assets/misc/misc1.png";
+			// Fallback when no keyword matches (form-type -> path). Used when JSON is missing or item has no mapped keyword.
+			static const std::unordered_map<int, std::string> FALLBACK_TYPE_ICONS = {
+				{0, "assets/weapons/sword.png"}, {1, "assets/weapons/dagger.png"}, {2, "assets/weapons/waraxe.png"},
+				{3, "assets/weapons/mace.png"}, {4, "assets/weapons/greatsword.png"}, {5, "assets/weapons/battleaxe.png"},
+				{6, "assets/weapons/bow.png"}, {7, "assets/weapons/staff.png"}, {8, "assets/weapons/crossbow.png"},
+				{10, "assets/armors/headgear_light.png"}, {11, "assets/armors/cuirass_light.png"}, {12, "assets/armors/gaunlets_light.png"},
+				{13, "assets/armors/boots_light.png"}, {14, "assets/armors/shield_light.png"}, {15, "assets/jewelry/ring.png"},
+				{16, "assets/jewelry/amulet.png"}, {17, "assets/weapons/arrows.png"}, {18, "assets/misc/book1.png"},
+				{19, "assets/misc/misc1.png"}, {20, "assets/ingestable/potion.png"}, {21, "assets/alchemy/ingredient1.png"},
+				{22, "assets/weapons/katana_1h.png"}, {23, "assets/weapons/katana_2h.png"}, {24, "assets/weapons/spear.png"},
+				{25, "assets/weapons/halberd.png"}, {26, "assets/weapons/quarterstaff.png"}, {27, "assets/weapons/rapier.png"},
+				{28, "assets/weapons/scimitar.png"}, {29, "assets/weapons/warhammer.png"}, {40, "assets/armors/headgear_heavy.png"},
+				{41, "assets/armors/cuirass_heavy.png"}, {42, "assets/armors/gaunlets_heavy.png"}, {43, "assets/armors/boots_heavy.png"},
+				{44, "assets/armors/shield_heavy.png"}, {45, "assets/jewelry/ring.png"}, {46, "assets/jewelry/amulet.png"},
+				{50, "assets/clothing/headwear.png"}, {51, "assets/clothing/clothing.png"}, {52, "assets/clothing/gloves.png"},
+				{53, "assets/clothing/footwear.png"}, {54, "assets/clothing/robe.png"}, {55, "assets/misc/key.png"}
+			};
 
 			bool poll_gamepad_activate()
 			{
@@ -288,31 +311,118 @@ namespace SoulsLoot
 				if (item->Is(RE::FormType::Book)) return 18;
 				if (item->Is(RE::FormType::AlchemyItem)) return 20;
 				if (item->Is(RE::FormType::Ingredient)) return 21;
-				if (item->Is(RE::FormType::Key)) return 55;
+				if (item->IsKey()) return 55;
 				if (item->Is(RE::FormType::Misc)) return 19;
 				return 19;
 			}
 
-			std::string build_loot_json(const std::vector<RE::TESBoundObject*>& items, const std::vector<int>& counts)
+			// Rarity string from tier (0=common, 1=uncommon, 2=rare, 3=legendary). Tier comes from loot roll in Events.
+			static const char* tier_to_rarity(int tier)
+			{
+				switch (tier) {
+					case 1: return "uncommon";
+					case 2: return "rare";
+					case 3: return "legendary";
+					default: return "common";
+				}
+			}
+
+			void load_type_icons_json()
+			{
+				auto pluginDir = Config::GetPluginDirectory();
+				if (!pluginDir || pluginDir->empty()) return;
+				auto path = *pluginDir / "SoulsStyleLoot_TypeIcons.json";
+				std::ifstream f(path);
+				if (f) {
+					std::string content((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+					f.close();
+					// Parse "key": "value" pairs. Key and value are quoted strings (key = keyword EditorID, value = icon path).
+					g_keywordIconPath.clear();
+					const char* p = content.c_str();
+					while (*p) {
+						while (*p && *p != '"') ++p;
+						if (!*p) break;
+						++p; // skip opening "
+						const char* keyStart = p;
+						while (*p && *p != '"') {
+							if (*p == '\\') ++p; // skip escaped char
+							if (*p) ++p;
+						}
+						if (!*p) break;
+						std::string key(keyStart, static_cast<size_t>(p - keyStart));
+						++p; // skip closing "
+						while (*p && *p != ':') ++p;
+						if (!*p) break;
+						++p;
+						while (*p == ' ' || *p == '\t') ++p;
+						if (*p != '"') continue;
+						++p; // skip opening " of value
+						const char* valStart = p;
+						while (*p && *p != '"') {
+							if (*p == '\\') ++p;
+							if (*p) ++p;
+						}
+						if (!*p) break;
+						std::string value(valStart, static_cast<size_t>(p - valStart));
+						++p;
+						if (!key.empty() && !value.empty())
+							g_keywordIconPath[std::move(key)] = std::move(value);
+					}
+					SKSE::log::info("PrismaUI: loaded {} keyword icon paths from SoulsStyleLoot_TypeIcons.json", g_keywordIconPath.size());
+					return;
+				}
+				SKSE::log::info("PrismaUI: TypeIcons JSON not found at {}; using fallback by form type", path.string());
+			}
+
+			// Fallback icon path when no keyword in g_keywordIconPath matches (by get_item_type).
+			static const char* get_fallback_icon_path_for_type(int type)
+			{
+				auto it = FALLBACK_TYPE_ICONS.find(type);
+				if (it != FALLBACK_TYPE_ICONS.end() && !it->second.empty())
+					return it->second.c_str();
+				return DEFAULT_TYPE_ICON;
+			}
+
+			// Resolve icon path: first matching keyword from item's keywords, else fallback by form type.
+			static std::string get_icon_path_for_item(RE::TESBoundObject* item)
+			{
+				std::call_once(g_typeIconsOnce, load_type_icons_json);
+				auto* kf = item ? item->As<RE::BGSKeywordForm>() : nullptr;
+				if (kf) {
+					for (RE::BGSKeyword* kw : kf->GetKeywords()) {
+						if (!kw) continue;
+						const char* editorID = kw->GetFormEditorID();
+						if (!editorID || !*editorID) continue;
+						auto it = g_keywordIconPath.find(editorID);
+						if (it != g_keywordIconPath.end() && !it->second.empty())
+							return it->second;
+					}
+				}
+				return get_fallback_icon_path_for_type(get_item_type(item));
+			}
+
+			std::string build_loot_json(const std::vector<RE::TESBoundObject*>& items, const std::vector<int>& counts, const std::vector<int>& tiers)
 			{
 				std::string escaped;
 				std::ostringstream os;
 				os << "{\"items\":[";
 				const size_t n = (std::min)(items.size(), counts.size());
+				bool first = true;
 				for (size_t i = 0; i < n; ++i) {
-					if (i) os << ',';
 					RE::TESBoundObject* it = items[i];
-					const char* name = it ? it->GetName() : nullptr;
+					if (!it || counts[i] <= 0) continue;  // skip null or zero-count to avoid ghost "Item" row
+					if (!first) os << ',';
+					first = false;
+					const char* name = it->GetName();
 					if (!name || !name[0]) name = "Item";
 					escape_json_string(name, escaped);
-					os << "{\"name\":\"" << escaped << "\",\"count\":" << counts[i] << ",\"type\":" << get_item_type(it);
+					int tier = (i < tiers.size()) ? tiers[i] : 0;
 					const std::string& pngFromManifest = get_manifest_png_for_item(it);
 					std::string iconPath = pngFromManifest.empty() ? IconUtils::GetInventoryIconPath(it) : pngFromManifest;
-					if (!iconPath.empty()) {
-						escape_json_string(iconPath.c_str(), escaped);
-						os << ",\"iconPath\":\"" << escaped << '"';
-					}
-					os << '}';
+					if (iconPath.empty())
+						iconPath = get_icon_path_for_item(it);
+					escape_json_string(iconPath.c_str(), escaped);
+					os << "{\"name\":\"" << escaped << "\",\"count\":" << counts[i] << ",\"rarity\":\"" << tier_to_rarity(tier) << "\",\"iconPath\":\"" << escaped << "\"}";
 				}
 				int displayMs = static_cast<int>(Config::GetLootDisplaySeconds() * 1000.0);
 				if (displayMs < 2000) displayMs = 2000;
@@ -374,7 +484,7 @@ namespace SoulsLoot
 			SKSE::log::info("PrismaUI view created (ID {}). Ensure Data/PrismaUI/views/SoulsStyleLoot/index.html exists.", g_view);
 		}
 
-		void ShowLoot(const std::vector<RE::TESBoundObject*>& items, const std::vector<int>& counts)
+		void ShowLoot(const std::vector<RE::TESBoundObject*>& items, const std::vector<int>& counts, const std::vector<int>& tiers)
 		{
 			if (items.empty()) return;
 			if (!g_api || !g_view) {
@@ -387,7 +497,7 @@ namespace SoulsLoot
 				SKSE::log::warn("ShowLoot: view invalid");
 				return;
 			}
-			std::string json = build_loot_json(items, counts);
+			std::string json = build_loot_json(items, counts, tiers);
 			if (g_domReady) {
 				send_loot_to_view(json);
 			} else {

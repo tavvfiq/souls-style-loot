@@ -29,6 +29,7 @@ namespace SoulsLoot
 			if (!dh) {
 				return;
 			}
+			const std::size_t startSize = a_out.size();
 
 			const auto& arr = dh->GetFormArray<T>();
 			for (auto* form : arr) {
@@ -43,7 +44,7 @@ namespace SoulsLoot
 				}
 
 				const RE::TESFile* file = form->GetFile(0);
-				std::string pluginName = file ? file->GetFilename() : "";
+				std::string pluginName = file ? std::string(file->GetFilename()) : std::string();
 
 				ItemIconRecord rec;
 				rec.pluginName = pluginName;
@@ -52,7 +53,7 @@ namespace SoulsLoot
 				a_out.push_back(std::move(rec));
 			}
 
-			SoulsLog::LineF("IconGenerator: collected %zu %s items with icons", a_out.size(), a_categoryName);
+			SoulsLog::LineF("IconGenerator: collected %zu %s with icons (total %zu)", a_out.size() - startSize, a_categoryName, a_out.size());
 		}
 
 		std::string MakePngRelativePath(const std::string& a_ddsPath)
@@ -104,10 +105,21 @@ namespace SoulsLoot
 			return;
 		}
 
-		const char* manifestPath = Config::GetIconManifestPath();
-		if (!manifestPath || !*manifestPath) {
-			SoulsLog::Line("IconGenerator: IconManifestPath not set; skipping generation");
-			return;
+		std::string manifestPathStr;
+		{
+			const char* cfg = Config::GetIconManifestPath();
+			if (cfg && *cfg) {
+				manifestPathStr = cfg;
+			} else {
+				// Default: write manifest next to SKSE logs (e.g. Documents\My Games\Skyrim Special Edition\SKSE\)
+				auto logDir = SKSE::log::log_directory();
+				if (!logDir) {
+					SoulsLog::Line("IconGenerator: no log directory; cannot write default manifest");
+					return;
+				}
+				manifestPathStr = (*logDir / "SoulsStyleLoot_ItemIcons.json").string();
+				SoulsLog::LineF("IconGenerator: IconManifestPath not set; using default: %s", manifestPathStr.c_str());
+			}
 		}
 
 		SoulsLog::Line("IconGenerator: starting item icon scan (generation does not run texconv here)");
@@ -127,7 +139,7 @@ namespace SoulsLoot
 			rec.pngPath = MakePngRelativePath(rec.ddsPath);
 		}
 
-		WriteManifest(items, manifestPath);
+		WriteManifest(items, manifestPathStr);
 
 		SoulsLog::LineF("IconGenerator: wrote manifest with %zu entries", items.size());
 	}

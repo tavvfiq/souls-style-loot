@@ -1,4 +1,5 @@
-; Souls Style Looting - copy to: Documents\My Games\Skyrim Special Edition\SKSE\SoulsStyleLooting.ini
+; Souls Style Looting - place in: <Game>\Data\SKSE\Plugins\SoulsStyleLooting.ini (same folder as the DLL)
+; Optional: SoulsStyleLoot_TypeIcons.json in the same folder maps display type numbers to icon paths (e.g. "19": "assets/misc/misc1.png"). If missing, built-in defaults are used.
 ; SafetyKey: Virtual key code held to open normal container menu. 0 = disabled. 16=Shift, 17=Ctrl, 18=Alt. MCM overrides.
 ; LootDisplaySeconds: Fallback display time (2-15). Used when not cycling.
 ; LootCycleDelaySeconds: Seconds each item is shown before cycling to the next (0.5-10). Default 2.0.
@@ -25,9 +26,11 @@ MiscDropChance=95
 BookDropChance=50
 
 ; 0 = disabled, 1 = generate item icon manifest once (then you can run texconv externally), 2 = done
+; When 1: if IconManifestPath is not set, manifest is written to SKSE folder as SoulsStyleLoot_ItemIcons.json
 GenerateItemIcons=0
 
 ; Optional: used by your external DDS -> PNG workflow (or future in-plugin converter)
 ;TexconvPath=Data\\Tools\\texconv.exe
 ;IconOutputDir=Data\\PrismaUI\\views\\SoulsStyleLoot\\assets\\generated
+; IconManifestPath: where to write the manifest. If unset and GenerateItemIcons=1, default is <SKSE log folder>\SoulsStyleLoot_ItemIcons.json
 ;IconManifestPath=Data\\PrismaUI\\views\\SoulsStyleLoot\\SoulsStyleLoot_ItemIcons.json
