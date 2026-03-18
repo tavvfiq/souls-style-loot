@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Souls Style Loot — List Mockup</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: "EB Garamond", "Times New Roman", Georgia, serif;
+            background: transparent;
+            min-height: 100vh;
+            color: #fff;
+            user-select: none;
+            pointer-events: none;
+        }
+
+        #loot-panel {
+            position: fixed;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            min-width: 520px;
+            max-width: 760px;
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .panel-frame {
+            /* Flatter, more "overlay" like DS loot list */
+            background: transparent;
+            border: 0;
+            box-shadow: none;
+            padding: 14px 18px 12px;
+            width: 100%;
+            position: relative;
+        }
+
+        .loot-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px; /* clearer gap between rows */
+            padding: 4px 2px 10px;
+            max-height: 360px;
+            overflow: hidden;
+        }
+
+        .loot-row {
+            display: grid;
+            grid-template-columns: 36px 1fr 48px;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 10px;
+            position: relative;
+            /* Sharp corners, metallic grey border, drop shadow */
+            border: 1px solid rgba(180, 178, 172, 0.5);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+            background: linear-gradient(90deg,
+                rgba(28, 28, 28, 0.94) 0%,
+                rgba(48, 48, 48, 0.82) 50%,
+                rgba(28, 28, 28, 0.94) 100%);
+        }
+
+        .loot-icon {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .loot-icon img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.8));
+        }
+        .loot-name {
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            color: #fff;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.9);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .loot-mid {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+        }
+        .loot-rarity {
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.9);
+            line-height: 1.1;
+        }
+        .loot-rarity.rarity-common { color: #9ca3af; }
+        .loot-rarity.rarity-uncommon { color: #4ade80; }
+        .loot-rarity.rarity-rare { color: #60a5fa; }
+        .loot-rarity.rarity-epic { color: #c084fc; }
+        .loot-rarity.rarity-legendary { color: #fbbf24; }
+
+        @keyframes legendary-glow {
+            0%, 100% { box-shadow: 0 2px 10px rgba(0, 0, 0, 0.55), 0 0 0 0 rgba(251, 191, 36, 0.25); }
+            50% { box-shadow: 0 3px 14px rgba(0, 0, 0, 0.7), 0 0 18px 4px rgba(251, 191, 36, 0.65); }
+        }
+        @keyframes legendary-border {
+            0%, 100% { border-color: rgba(180, 178, 172, 0.5); }
+            50% { border-color: rgba(251, 191, 36, 0.55); }
+        }
+        .loot-row.rarity-legendary {
+            animation: legendary-glow 2.5s ease-in-out infinite, legendary-border 2.5s ease-in-out infinite;
+        }
+        .loot-row.rarity-legendary .loot-rarity.rarity-legendary {
+            animation: legendary-text-glow 2.5s ease-in-out infinite;
+        }
+        @keyframes legendary-text-glow {
+            0%, 100% { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9), 0 0 4px rgba(251, 191, 36, 0.0); }
+            50% { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9), 0 0 12px rgba(251, 191, 36, 0.9); }
+        }
+
+        .loot-count {
+            justify-self: end;
+            font-size: 18px;
+            font-weight: 600;
+            color: #e8e4dc;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.9);
+        }
+
+        .prompt-bar {
+            text-align: center;
+            padding: 3px 10px 2px;
+            font-size: 12px;
+            color: #c9c4b8;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            margin-top: 8px;
+            position: relative;
+            border: 1px solid rgba(180, 178, 172, 0.5);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+            background: linear-gradient(90deg,
+                rgba(28, 28, 28, 0.94) 0%,
+                rgba(48, 48, 48, 0.82) 50%,
+                rgba(28, 28, 28, 0.94) 100%);
+        }
+        .prompt-frame {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            padding: 2px 8px 1px;
+            background: transparent;
+            border: 0;
+            box-shadow: none;
+        }
+        .prompt-bar .key-cap {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 22px;
+            height: 20px;
+            padding: 0 5px;
+            background: rgba(30, 30, 30, 0.95);
+            border: 1px solid rgba(220, 218, 212, 0.9);
+            font-size: 12px;
+            font-weight: 600;
+            color: #e8e4dc;
+            font-family: inherit;
+            margin-right: 4px;
+        }
+        .prompt-bar .action-text {
+            font-size: 12px;
+            font-weight: 500;
+            color: #c9c4b8;
+            letter-spacing: 0.02em;
+        }
+        /* #loot-prompt is the framed prompt container (needs background/border). */
+    </style>
+</head>
+<body>
+    <div id="loot-panel">
+        <div class="panel-frame">
+            <div class="loot-list" id="loot-list"></div>
+            <div class="prompt-bar" id="loot-prompt-wrap">
+                <div class="prompt-frame" id="loot-prompt"><span class="key-cap">E</span><span class="action-text">: OK</span></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            var DEFAULT_ICON = 'assets/misc/misc1.png';
+
+            function escapeHtml(text) {
+                var div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+            function normalizeIconPath(p) {
+                if (!p) return '';
+                var s = String(p);
+                s = s.replace(/\\/g, '/');
+                if (s.indexOf('SoulsStyleLoot/') === 0) s = s.substring('SoulsStyleLoot/'.length);
+                return s;
+            }
+
+            var MOCK_ITEMS = [
+                { name: 'Soul of a Hero', rarity: 'legendary', iconPath: 'assets/misc/misc2.png', count: 1 },
+                { name: 'Lothric Knight Greatshield', rarity: 'rare', iconPath: 'assets/armors/greatshield_heavy.png', count: 1 },
+                { name: 'Lothric Knight Armor', rarity: 'rare', iconPath: 'assets/armors/cuirass_heavy.png', count: 1 },
+                { name: 'Lothric Knight Leggings', rarity: 'rare', iconPath: 'assets/armors/boots_heavy.png', count: 1 },
+                { name: 'Large Titanite Shard', rarity: 'uncommon', iconPath: 'assets/misc/misc2.png', count: 1 },
+                { name: 'Refined Gem', rarity: 'uncommon', iconPath: 'assets/alchemy/ingredient3.png', count: 1 },
+                { name: 'Steel Arrow', rarity: 'common', iconPath: 'assets/weapons/arrows.png', count: 24 },
+                { name: 'Health Potion', rarity: 'uncommon', iconPath: 'assets/ingestable/potion_health.png', count: 3 },
+                { name: 'Lockpick', rarity: 'common', iconPath: 'assets/misc/lockpick.png', count: 8 }
+            ];
+
+            var RARITY_LABELS = { common: 'Common', uncommon: 'Uncommon', rare: 'Rare', epic: 'Epic', legendary: 'Legendary' };
+            var list = document.getElementById('loot-list');
+            for (var i = 0; i < MOCK_ITEMS.length; i++) {
+                var it = MOCK_ITEMS[i];
+                var name = it.name ? String(it.name) : 'Item';
+                var count = (it.count != null && Number(it.count) > 0) ? Math.floor(Number(it.count)) : 1;
+                var src = normalizeIconPath(it.iconPath) || DEFAULT_ICON;
+                var rarityKey = (it.rarity != null && String(it.rarity).trim()) ? String(it.rarity).toLowerCase() : 'common';
+                if (!RARITY_LABELS[rarityKey]) rarityKey = 'common';
+                var rarityLabel = RARITY_LABELS[rarityKey];
+
+                var row = document.createElement('div');
+                row.className = 'loot-row rarity-' + rarityKey;
+                row.innerHTML =
+                    '<div class="loot-icon"><img src="' + escapeHtml(src) + '" alt=""></div>' +
+                    '<div class="loot-mid">' +
+                        '<div class="loot-rarity rarity-' + escapeHtml(rarityKey) + '">' + escapeHtml(rarityLabel) + '</div>' +
+                        '<div class="loot-name">' + escapeHtml(name) + '</div>' +
+                    '</div>' +
+                    '<div class="loot-count">' + escapeHtml(String(count)) + '</div>';
+                list.appendChild(row);
+            }
+        })();
+    </script>
+</body>
+</html>
+

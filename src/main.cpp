@@ -1,7 +1,6 @@
 #include "pch.h"
 #include "Config.h"
 #include "Events.h"
-#include "IconGenerator.h"
 #include "OpenContainerHook.h"
 #include "PrismaUI.h"
 #include "SoulsLog.h"
@@ -12,7 +11,6 @@ void OnMessages(SKSE::MessagingInterface::Message* a_msg)
 	case SKSE::MessagingInterface::kDataLoaded:
 		SoulsLog::Line("SoulsStyleLooting: kDataLoaded - loading config, hook, events and PrismaUI");
 		SoulsLoot::Config::Load();
-		SoulsLoot::GenerateItemIconsIfNeeded();
 		SoulsLoot::InstallOpenContainerHook();
 		SoulsLoot::DeathEventHandler::Register();
 		SoulsLoot::ActivateEventHandler::Register();

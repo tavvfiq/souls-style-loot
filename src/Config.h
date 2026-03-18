@@ -13,18 +13,6 @@ namespace SoulsLoot
 		/// Call once after kDataLoaded. Loads from INI and optional Papyrus globals (MCM).
 		void Load();
 
-		/// Generation mode for per-item icons: 0=disabled, 1=run generation, 2=done (cache only).
-		int GetGenerateItemIconsMode();
-
-		/// Optional path to texconv.exe (from DirectXTex) for DDS -> PNG conversion. Empty = disabled.
-		const char* GetTexconvPath();
-
-		/// Output directory for generated PNG icons (relative or absolute).
-		const char* GetIconOutputDir();
-
-		/// Path to JSON manifest describing generated icons.
-		const char* GetIconManifestPath();
-
 		/// Virtual key code for "open normal inventory" when held during corpse activate. 0 = disabled. Default 16 (Shift).
 		int GetSafetyKeyCode();
 
@@ -37,6 +25,10 @@ namespace SoulsLoot
 		/// Virtual key code to close the loot UI after last item (activate key). Default 0x45 (E).
 		int GetLootCloseKeyCode();
 
+		/// Which HTML view to use for the loot UI. Relative to PrismaUI views root.
+		/// Examples: "SoulsStyleLoot/index.html" (default, cycle) or "SoulsStyleLoot/index_list.html" (list).
+		const char* GetLootUIViewPath();
+
 		/// Chance that a corpse drops any random loot, as percentage (0-100). 100 = always. Quest items and gold always. Default 100.
 		double GetDropChancePercent();
 
@@ -45,5 +37,11 @@ namespace SoulsLoot
 
 		/// Item-type drop chance as percentage (0-100). Type 0=weapon, 1=armor, 2=ammo, 3=misc, 4=book. Default 100.
 		double GetTypeDropChancePercent(int a_type);
+
+		/// Additional gate for enchanted items (base-form enchantment), as percentage (0-100).
+		/// Only applied to weapons/armor that are already enchanted; unenchanted items are unaffected.
+		/// Tier 0=common, 1=uncommon, 2=rare, 3=legendary.
+		double GetEnchantedWeaponDropChancePercent(int a_tier);
+		double GetEnchantedArmorDropChancePercent(int a_tier);
 	}
 }

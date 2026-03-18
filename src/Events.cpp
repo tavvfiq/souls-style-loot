@@ -5,6 +5,7 @@
 #include "RE/B/BGSKeywordForm.h"
 #include "RE/C/ContainerMenu.h"
 #include "RE/T/TESDataHandler.h"
+#include "RE/T/TESEnchantableForm.h"
 #include "RE/U/UIMessageQueue.h"
 #include <random>
 #include <unordered_set>
@@ -99,6 +100,18 @@ namespace SoulsLoot
 			if (a_item->Is(RE::FormType::Book)) return 4;
 			return 3;
 		}
+
+		bool IsBaseEnchantedWeapon(RE::TESBoundObject* a_item)
+		{
+			auto* weap = a_item ? a_item->As<RE::TESObjectWEAP>() : nullptr;
+			return weap && weap->formEnchanting;
+		}
+
+		bool IsBaseEnchantedArmor(RE::TESBoundObject* a_item)
+		{
+			auto* armo = a_item ? a_item->As<RE::TESObjectARMO>() : nullptr;
+			return armo && armo->formEnchanting;
+		}
 	}
 	// --- Loot Manager ---
 	void LootManager::StoreLoot(RE::FormID a_actorID, LootDrop a_loot)
@@ -142,10 +155,21 @@ namespace SoulsLoot
 
 	RE::BSEventNotifyControl DeathEventHandler::ProcessEvent(const RE::TESDeathEvent* a_event, RE::BSTEventSource<RE::TESDeathEvent>*)
 	{
-		if (!a_event || !a_event->actorDying) return RE::BSEventNotifyControl::kContinue;
+		if (!a_event || !a_event->actorDying) {
+			return RE::BSEventNotifyControl::kContinue;
+		}
 
 		auto actor = a_event->actorDying->As<RE::Actor>();
-		if (!actor || actor->IsPlayerRef()) return RE::BSEventNotifyControl::kContinue;
+		if (!actor || actor->IsPlayerRef()) {
+			return RE::BSEventNotifyControl::kContinue;
+		}
+
+		// Only run Souls-style loot (including auto-gold) when the PLAYER is the killer.
+		// This avoids silently vacuuming gold from corpses killed by other actors (traps, guards, followers, etc.).
+		RE::Actor* killer = a_event->actorKiller ? a_event->actorKiller->As<RE::Actor>() : nullptr;
+		if (!killer || !killer->IsPlayerRef()) {
+			return RE::BSEventNotifyControl::kContinue;
+		}
 
 		auto inventory = actor->GetInventory();
 		static constexpr std::string_view QUEST_ITEM_KEYWORD = "VendorItemQuest";
@@ -236,7 +260,20 @@ namespace SoulsLoot
 				int type = GetItemType(it);
 				double typeChancePct = Config::GetTypeDropChancePercent(type);
 				bool passType = (typeChancePct >= 100.0) || (realDist(gen) < (typeChancePct / 100.0));
-				if (passTier && passType) candidates.push_back(it);
+
+				bool passEnchantGate = true;
+				if (passTier && passType) {
+					// Additional gate: only affects items that are already enchanted at base-form level.
+					if (type == 0 && IsBaseEnchantedWeapon(it)) {
+						double enchChancePct = Config::GetEnchantedWeaponDropChancePercent(tier);
+						passEnchantGate = (enchChancePct >= 100.0) || (realDist(gen) < (enchChancePct / 100.0));
+					} else if (type == 1 && IsBaseEnchantedArmor(it)) {
+						double enchChancePct = Config::GetEnchantedArmorDropChancePercent(tier);
+						passEnchantGate = (enchChancePct >= 100.0) || (realDist(gen) < (enchChancePct / 100.0));
+					}
+				}
+
+				if (passTier && passType && passEnchantGate) candidates.push_back(it);
 			}
 			// If no item passed tier roll, add one random so something can still drop
 			if (candidates.empty()) candidates.push_back(shuffled[0]);

@@ -1,7 +1,6 @@
 #include "pch.h"
 #include "PrismaUI.h"
 #include "Config.h"
-#include "IconUtils.h"
 #include "SoulsLog.h"
 #include "RE/B/BSString.h"
 #include "RE/B/BGSBipedObjectForm.h"
@@ -31,15 +30,12 @@ namespace SoulsLoot
 		{
 			PRISMA_UI_API::IVPrismaUI1* g_api = nullptr;
 			::PrismaView g_view = 0;
-			constexpr const char* VIEW_PATH = "SoulsStyleLoot/index.html";
 			std::atomic<bool> g_domReady{ false };
 			std::atomic<bool> g_waitingForClose{ false };
 			std::string g_pendingJson;
 			std::mutex g_pendingMutex;
 
-			// Map of formID -> PNG path (relative, e.g. SoulsStyleLoot/assets/generated/...)
-			std::unordered_map<RE::FormID, std::string> g_iconPngByForm;
-			std::once_flag g_manifestOnce;
+			// (Removed) Per-item icon manifest / DDS->PNG pipeline.
 
 			// Keyword EditorID -> icon path (loaded from SoulsStyleLoot_TypeIcons.json). First matching keyword on item wins.
 			std::unordered_map<std::string, std::string> g_keywordIconPath;
@@ -130,107 +126,6 @@ namespace SoulsLoot
 				return (cm->GetGamePadType() == RE::PC_GAMEPAD_TYPE::kOrbis) ? "controllerPs" : "controller";
 			}
 
-			void load_icon_manifest()
-			{
-				const char* manifestPath = Config::GetIconManifestPath();
-				if (!manifestPath || !*manifestPath) {
-					return;
-				}
-
-				std::ifstream in(manifestPath);
-				if (!in) {
-					SoulsLog::LineF("PrismaUI: failed to open icon manifest at %s", manifestPath);
-					SKSE::log::warn("PrismaUI: failed to open icon manifest at {}", manifestPath);
-					return;
-				}
-
-				std::string data((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-				if (data.empty()) {
-					return;
-				}
-
-				g_iconPngByForm.clear();
-
-				std::size_t pos = 0;
-				for (;;) {
-					pos = data.find("\"formID\"", pos);
-					if (pos == std::string::npos) {
-						break;
-					}
-
-					std::size_t colon = data.find(':', pos);
-					if (colon == std::string::npos) {
-						break;
-					}
-
-					std::size_t q1 = data.find('"', colon);
-					if (q1 == std::string::npos) {
-						break;
-					}
-					std::size_t q2 = data.find('"', q1 + 1);
-					if (q2 == std::string::npos) {
-						break;
-					}
-					std::string formStr = data.substr(q1 + 1, q2 - q1 - 1);
-					RE::FormID formID = 0;
-					if (!formStr.empty()) {
-						formID = static_cast<RE::FormID>(std::strtoul(formStr.c_str(), nullptr, 0));
-					}
-
-					std::size_t pngPos = data.find("\"pngPath\"", q2);
-					if (pngPos == std::string::npos) {
-						pos = q2;
-						continue;
-					}
-					std::size_t pngColon = data.find(':', pngPos);
-					if (pngColon == std::string::npos) {
-						pos = pngPos;
-						continue;
-					}
-					std::size_t pq1 = data.find('"', pngColon);
-					if (pq1 == std::string::npos) {
-						pos = pngColon;
-						continue;
-					}
-					std::size_t pq2 = data.find('"', pq1 + 1);
-					if (pq2 == std::string::npos) {
-						pos = pq1;
-						continue;
-					}
-					std::string pngPath = data.substr(pq1 + 1, pq2 - pq1 - 1);
-
-					if (formID != 0 && !pngPath.empty()) {
-						g_iconPngByForm[formID] = pngPath;
-					}
-
-					pos = pq2;
-				}
-
-				SoulsLog::LineF("PrismaUI: loaded icon manifest (%zu entries)", g_iconPngByForm.size());
-				SKSE::log::info("PrismaUI: loaded icon manifest ({} entries)", g_iconPngByForm.size());
-			}
-
-			const std::string& get_manifest_png_for_item(RE::TESBoundObject* item)
-			{
-				static const std::string empty;
-				if (!item) {
-					return empty;
-				}
-
-				std::call_once(g_manifestOnce, load_icon_manifest);
-
-				RE::TESForm* form = item;
-				if (!form) {
-					return empty;
-				}
-
-				auto it = g_iconPngByForm.find(form->GetFormID());
-				if (it == g_iconPngByForm.end()) {
-					return empty;
-				}
-				return it->second;
-			}
-
 			// Display type: 0-9 weapon, 22-29 OCF keyword weapons, 10-16 light armor, 17 ammo, 18 book, 19 misc, 20 potion, 21 ingredient,
 			// 40-46 heavy armor, 50-54 clothing
 			int get_item_type(RE::TESBoundObject* item)
@@ -276,7 +171,9 @@ namespace SoulsLoot
 							using Slot = RE::BIPED_MODEL::BipedObjectSlot;
 							int base = 11; // body default
 							if (bip->HasPartOf(Slot::kShield))  base = 14;
-							else if (bip->HasPartOf(Slot::kHead))   base = 10;
+							// Many helmets use Hair/Circlet slots, not just Head. Treat those as headgear too.
+							else if (bip->HasPartOf(Slot::kHead) || bip->HasPartOf(Slot::kHair) || bip->HasPartOf(Slot::kLongHair) || bip->HasPartOf(Slot::kCirclet) || bip->HasPartOf(Slot::kEars))
+								base = 10;
 							else if (bip->HasPartOf(Slot::kBody))   base = 11;
 							else if (bip->HasPartOf(Slot::kHands))  base = 12;
 							else if (bip->HasPartOf(Slot::kFeet))   base = 13;
@@ -403,7 +300,7 @@ namespace SoulsLoot
 
 			std::string build_loot_json(const std::vector<RE::TESBoundObject*>& items, const std::vector<int>& counts, const std::vector<int>& tiers)
 			{
-				std::string escaped;
+				std::string escapedName, escapedIconPath, escapedPromptType;
 				std::ostringstream os;
 				os << "{\"items\":[";
 				const size_t n = (std::min)(items.size(), counts.size());
@@ -415,14 +312,11 @@ namespace SoulsLoot
 					first = false;
 					const char* name = it->GetName();
 					if (!name || !name[0]) name = "Item";
-					escape_json_string(name, escaped);
+					escape_json_string(name, escapedName);
 					int tier = (i < tiers.size()) ? tiers[i] : 0;
-					const std::string& pngFromManifest = get_manifest_png_for_item(it);
-					std::string iconPath = pngFromManifest.empty() ? IconUtils::GetInventoryIconPath(it) : pngFromManifest;
-					if (iconPath.empty())
-						iconPath = get_icon_path_for_item(it);
-					escape_json_string(iconPath.c_str(), escaped);
-					os << "{\"name\":\"" << escaped << "\",\"count\":" << counts[i] << ",\"rarity\":\"" << tier_to_rarity(tier) << "\",\"iconPath\":\"" << escaped << "\"}";
+					std::string iconPath = get_icon_path_for_item(it);
+					escape_json_string(iconPath.c_str(), escapedIconPath);
+					os << "{\"name\":\"" << escapedName << "\",\"count\":" << counts[i] << ",\"rarity\":\"" << tier_to_rarity(tier) << "\",\"iconPath\":\"" << escapedIconPath << "\"}";
 				}
 				int displayMs = static_cast<int>(Config::GetLootDisplaySeconds() * 1000.0);
 				if (displayMs < 2000) displayMs = 2000;
@@ -431,8 +325,8 @@ namespace SoulsLoot
 				if (cycleDelayMs < 500) cycleDelayMs = 500;
 				if (cycleDelayMs > 10000) cycleDelayMs = 10000;
 				const char* promptType = get_prompt_type();
-				escape_json_string(promptType, escaped);
-				os << "],\"displayMs\":" << displayMs << ",\"cycleDelayMs\":" << cycleDelayMs << ",\"requireActivateToClose\":true,\"promptType\":\"" << escaped << "\"}";
+				escape_json_string(promptType, escapedPromptType);
+				os << "],\"displayMs\":" << displayMs << ",\"cycleDelayMs\":" << cycleDelayMs << ",\"requireActivateToClose\":true,\"promptType\":\"" << escapedPromptType << "\"}";
 				return os.str();
 			}
 
@@ -456,9 +350,10 @@ namespace SoulsLoot
 				SKSE::log::warn("PrismaUI not available; loot notifications will not be shown.");
 				return;
 			}
-			SoulsLog::Line("PrismaUI: API obtained, creating view SoulsStyleLoot/index.html");
-			SKSE::log::info("PrismaUI API obtained, creating view: {}", VIEW_PATH);
-			g_view = g_api->CreateView(VIEW_PATH, [](::PrismaView view) {
+			const char* viewPath = Config::GetLootUIViewPath();
+			SoulsLog::LineF("PrismaUI: API obtained, creating view %s", viewPath ? viewPath : "(null)");
+			SKSE::log::info("PrismaUI API obtained, creating view: {}", viewPath ? viewPath : "");
+			g_view = g_api->CreateView(viewPath ? viewPath : "SoulsStyleLoot/index.html", [](::PrismaView view) {
 				g_view = view;
 				g_domReady = true;
 				SKSE::log::info("Souls Style Loot PrismaUI view DOM ready");
@@ -470,18 +365,18 @@ namespace SoulsLoot
 			});
 			if (!g_view) {
 				SoulsLog::Line("PrismaUI: CreateView failed (returned 0)");
-				SKSE::log::warn("PrismaUI CreateView returned 0 for {}", VIEW_PATH);
+				SKSE::log::warn("PrismaUI CreateView returned 0 for {}", viewPath ? viewPath : "");
 				g_api = nullptr;
 				return;
 			}
 			if (!g_api->IsValid(g_view)) {
 				SoulsLog::Line("PrismaUI: view invalid after create");
-				SKSE::log::warn("PrismaUI view invalid after create for {}", VIEW_PATH);
+				SKSE::log::warn("PrismaUI view invalid after create for {}", viewPath ? viewPath : "");
 			} else {
 				g_api->RegisterJSListener(g_view, "lootReadyForClose", on_loot_ready_for_close);
-				SoulsLog::LineF("PrismaUI: view created OK (ID %u). Ensure Data/PrismaUI/views/SoulsStyleLoot/index.html exists.", static_cast<unsigned>(g_view));
+				SoulsLog::LineF("PrismaUI: view created OK (ID %u).", static_cast<unsigned>(g_view));
 			}
-			SKSE::log::info("PrismaUI view created (ID {}). Ensure Data/PrismaUI/views/SoulsStyleLoot/index.html exists.", g_view);
+			SKSE::log::info("PrismaUI view created (ID {})", g_view);
 		}
 
 		void ShowLoot(const std::vector<RE::TESBoundObject*>& items, const std::vector<int>& counts, const std::vector<int>& tiers)

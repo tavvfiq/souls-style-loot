@@ -16,14 +16,12 @@ namespace SoulsLoot
 			double s_lootDisplaySeconds = 5.0;
 			double s_lootCycleDelaySeconds = 2.0;
 			int s_lootCloseKeyCode = 0x45;  // VK 'E' (activate)
+			std::string s_lootUIViewPath = "SoulsStyleLoot/index.html";
 			double s_dropChancePercent = 100.0;  // chance that corpse drops random loot (0-100%)
 			double s_tierDropChancePct[4] = { 100.0, 50.0, 25.0, 12.5 };  // common, uncommon, rare, legendary (%)
 			double s_typeDropChancePct[5] = { 100.0, 100.0, 100.0, 100.0, 100.0 };  // weapon, armor, ammo, misc, book (%)
-
-			int s_generateItemIconsMode = 0;  // 0=disabled, 1=run, 2=done
-			std::string s_texconvPath;
-			std::string s_iconOutputDir;
-			std::string s_iconManifestPath;
+			double s_enchWeaponDropChancePct[4] = { 20.0, 30.0, 45.0, 65.0 };  // common..legendary (%), only applies if already enchanted
+			double s_enchArmorDropChancePct[4] = { 20.0, 30.0, 45.0, 65.0 };   // common..legendary (%), only applies if already enchanted
 			bool s_loaded = false;
 
 			void ReadIni()
@@ -57,15 +55,6 @@ namespace SoulsLoot
 					if (key == "SafetyKey") {
 						int v = 0;
 						if (std::istringstream(val) >> v) s_safetyKeyCode = v;
-					} else if (key == "GenerateItemIcons") {
-						int v = 0;
-						if (std::istringstream(val) >> v) s_generateItemIconsMode = v;
-					} else if (key == "TexconvPath") {
-						s_texconvPath = val;
-					} else if (key == "IconOutputDir") {
-						s_iconOutputDir = val;
-					} else if (key == "IconManifestPath") {
-						s_iconManifestPath = val;
 					} else if (key == "LootDisplaySeconds") {
 						double v = 0;
 						if (std::istringstream(val) >> v && v > 0) s_lootDisplaySeconds = v;
@@ -75,6 +64,9 @@ namespace SoulsLoot
 					} else if (key == "LootCloseKeyCode") {
 						int v = 0;
 						if (std::istringstream(val) >> v) s_lootCloseKeyCode = v;
+					} else if (key == "LootUIView") {
+						// Expect a relative view path (e.g. SoulsStyleLoot/index.html). Empty = default.
+						if (!val.empty()) s_lootUIViewPath = val;
 					} else if (key == "DropChancePercent") {
 						double v = 0;
 						if (std::istringstream(val) >> v) { v = (v < 0) ? 0 : (v > 100 ? 100 : v); s_dropChancePercent = v; }
@@ -109,6 +101,30 @@ namespace SoulsLoot
 					} else if (key == "BookDropChance") {
 						double v = 0;
 						if (std::istringstream(val) >> v) { v = (v < 0) ? 0 : (v > 100 ? 100 : v); s_typeDropChancePct[4] = v; }
+					} else if (key == "EnchantedWeaponTier0Chance") {
+						double v = 0;
+						if (std::istringstream(val) >> v) { v = (v < 0) ? 0 : (v > 100 ? 100 : v); s_enchWeaponDropChancePct[0] = v; }
+					} else if (key == "EnchantedWeaponTier1Chance") {
+						double v = 0;
+						if (std::istringstream(val) >> v) { v = (v < 0) ? 0 : (v > 100 ? 100 : v); s_enchWeaponDropChancePct[1] = v; }
+					} else if (key == "EnchantedWeaponTier2Chance") {
+						double v = 0;
+						if (std::istringstream(val) >> v) { v = (v < 0) ? 0 : (v > 100 ? 100 : v); s_enchWeaponDropChancePct[2] = v; }
+					} else if (key == "EnchantedWeaponTier3Chance") {
+						double v = 0;
+						if (std::istringstream(val) >> v) { v = (v < 0) ? 0 : (v > 100 ? 100 : v); s_enchWeaponDropChancePct[3] = v; }
+					} else if (key == "EnchantedArmorTier0Chance") {
+						double v = 0;
+						if (std::istringstream(val) >> v) { v = (v < 0) ? 0 : (v > 100 ? 100 : v); s_enchArmorDropChancePct[0] = v; }
+					} else if (key == "EnchantedArmorTier1Chance") {
+						double v = 0;
+						if (std::istringstream(val) >> v) { v = (v < 0) ? 0 : (v > 100 ? 100 : v); s_enchArmorDropChancePct[1] = v; }
+					} else if (key == "EnchantedArmorTier2Chance") {
+						double v = 0;
+						if (std::istringstream(val) >> v) { v = (v < 0) ? 0 : (v > 100 ? 100 : v); s_enchArmorDropChancePct[2] = v; }
+					} else if (key == "EnchantedArmorTier3Chance") {
+						double v = 0;
+						if (std::istringstream(val) >> v) { v = (v < 0) ? 0 : (v > 100 ? 100 : v); s_enchArmorDropChancePct[3] = v; }
 					}
 				}
 			}
@@ -137,11 +153,15 @@ namespace SoulsLoot
 			ReadIni();
 			ApplyPapyrusGlobals();
 			SoulsLog::LineF(
-				"Config: SafetyKey=%d, LootDisplaySeconds=%.1f, LootCycleDelay=%.1f, LootCloseKey=0x%X, DropChancePercent=%.1f, GenerateItemIcons=%d",
-				s_safetyKeyCode, s_lootDisplaySeconds, s_lootCycleDelaySeconds, s_lootCloseKeyCode, s_dropChancePercent, s_generateItemIconsMode);
+				"Config: SafetyKey=%d, LootDisplaySeconds=%.1f, LootCycleDelay=%.1f, LootCloseKey=0x%X, DropChancePercent=%.1f, EnchWeap=[%.0f %.0f %.0f %.0f], EnchArmor=[%.0f %.0f %.0f %.0f]",
+				s_safetyKeyCode, s_lootDisplaySeconds, s_lootCycleDelaySeconds, s_lootCloseKeyCode, s_dropChancePercent,
+				s_enchWeaponDropChancePct[0], s_enchWeaponDropChancePct[1], s_enchWeaponDropChancePct[2], s_enchWeaponDropChancePct[3],
+				s_enchArmorDropChancePct[0], s_enchArmorDropChancePct[1], s_enchArmorDropChancePct[2], s_enchArmorDropChancePct[3]);
 			SKSE::log::info(
-				"Config: SafetyKey={}, LootDisplaySeconds={}, LootCycleDelay={}, LootCloseKey=0x{:X}, DropChancePercent={}%, GenerateItemIcons={}",
-				s_safetyKeyCode, s_lootDisplaySeconds, s_lootCycleDelaySeconds, s_lootCloseKeyCode, s_dropChancePercent, s_generateItemIconsMode);
+				"Config: SafetyKey={}, LootDisplaySeconds={}, LootCycleDelay={}, LootCloseKey=0x{:X}, DropChancePercent={}%, EnchWeap=[{} {} {} {}], EnchArmor=[{} {} {} {}]",
+				s_safetyKeyCode, s_lootDisplaySeconds, s_lootCycleDelaySeconds, s_lootCloseKeyCode, s_dropChancePercent,
+				s_enchWeaponDropChancePct[0], s_enchWeaponDropChancePct[1], s_enchWeaponDropChancePct[2], s_enchWeaponDropChancePct[3],
+				s_enchArmorDropChancePct[0], s_enchArmorDropChancePct[1], s_enchArmorDropChancePct[2], s_enchArmorDropChancePct[3]);
 		}
 
 		int GetSafetyKeyCode()
@@ -164,6 +184,11 @@ namespace SoulsLoot
 			return s_lootCloseKeyCode;
 		}
 
+		const char* GetLootUIViewPath()
+		{
+			return s_lootUIViewPath.empty() ? "SoulsStyleLoot/index.html" : s_lootUIViewPath.c_str();
+		}
+
 		double GetDropChancePercent()
 		{
 			return s_dropChancePercent;
@@ -181,6 +206,18 @@ namespace SoulsLoot
 			return s_typeDropChancePct[a_type];
 		}
 
+		double GetEnchantedWeaponDropChancePercent(int a_tier)
+		{
+			if (a_tier < 0 || a_tier > 3) return 100.0;
+			return s_enchWeaponDropChancePct[a_tier];
+		}
+
+		double GetEnchantedArmorDropChancePercent(int a_tier)
+		{
+			if (a_tier < 0 || a_tier > 3) return 100.0;
+			return s_enchArmorDropChancePct[a_tier];
+		}
+
 		std::optional<std::filesystem::path> GetPluginDirectory()
 		{
 			HMODULE hMod = GetModuleHandleW(L"SoulsStyleLooting.dll");
@@ -190,26 +227,6 @@ namespace SoulsLoot
 			std::filesystem::path p(buf);
 			p = p.remove_filename();
 			return p;
-		}
-
-		int GetGenerateItemIconsMode()
-		{
-			return s_generateItemIconsMode;
-		}
-
-		const char* GetTexconvPath()
-		{
-			return s_texconvPath.empty() ? nullptr : s_texconvPath.c_str();
-		}
-
-		const char* GetIconOutputDir()
-		{
-			return s_iconOutputDir.empty() ? nullptr : s_iconOutputDir.c_str();
-		}
-
-		const char* GetIconManifestPath()
-		{
-			return s_iconManifestPath.empty() ? nullptr : s_iconManifestPath.c_str();
 		}
 	}
 }

@@ -1,11 +1,17 @@
 ; Souls Style Looting - place in: <Game>\Data\SKSE\Plugins\SoulsStyleLooting.ini (same folder as the DLL)
-; Optional: SoulsStyleLoot_TypeIcons.json in the same folder maps display type numbers to icon paths (e.g. "19": "assets/misc/misc1.png"). If missing, built-in defaults are used.
+; Optional: SoulsStyleLoot_TypeIcons.json in the same folder maps keyword EditorID to icon paths (e.g. "OCF_WeapTypeSword1H": "assets/weapons/sword.png").
 ; SafetyKey: Virtual key code held to open normal container menu. 0 = disabled. 16=Shift, 17=Ctrl, 18=Alt. MCM overrides.
 ; LootDisplaySeconds: Fallback display time (2-15). Used when not cycling.
 ; LootCycleDelaySeconds: Seconds each item is shown before cycling to the next (0.5-10). Default 2.0.
 ; LootCloseKeyCode: Virtual key to close loot UI after last item (activate key). Default 0x45 (E).
+; LootUIView: which HTML view to use. Default SoulsStyleLoot/index.html.
+; - SoulsStyleLoot/index.html: current single-item cycle view
+; - SoulsStyleLoot/index_list.html: list view (shows all items at once)
 ; DropChancePercent: chance that a corpse drops any random loot (0-100). MCM DarkSoulsPickUpChances overrides.
 ; Tier: common -> legendary. Type: weapon, armor, ammo, misc, book. All values 0-100 (percentage).
+; EnchantedWeaponTierXChance / EnchantedArmorTierXChance: extra gate that only applies if the item is already enchanted (base form enchantment).
+; Example: if an enchanted weapon is Tier2 and EnchantedWeaponTier2Chance=40, it has a 40% chance to make it into the drop candidates
+; (after it already passed the normal Tier/Type rolls). Unenchanted weapons/armor are unaffected.
 ;
 ; --- Balanced preset (below) ---
 ; Corpse drops loot 75% of the time. Common items often, legendary rare. Weapons/armor a bit rarer than misc, books rarer.
@@ -14,6 +20,7 @@ SafetyKey=16
 LootDisplaySeconds=5.0
 LootCycleDelaySeconds=2.0
 LootCloseKeyCode=69
+LootUIView=SoulsStyleLoot/index.html
 DropChancePercent=75
 Tier0DropChance=100
 Tier1DropChance=65
@@ -24,13 +31,11 @@ ArmorDropChance=85
 AmmoDropChance=90
 MiscDropChance=95
 BookDropChance=50
-
-; 0 = disabled, 1 = generate item icon manifest once (then you can run texconv externally), 2 = done
-; When 1: if IconManifestPath is not set, manifest is written to SKSE folder as SoulsStyleLoot_ItemIcons.json
-GenerateItemIcons=0
-
-; Optional: used by your external DDS -> PNG workflow (or future in-plugin converter)
-;TexconvPath=Data\\Tools\\texconv.exe
-;IconOutputDir=Data\\PrismaUI\\views\\SoulsStyleLoot\\assets\\generated
-; IconManifestPath: where to write the manifest. If unset and GenerateItemIcons=1, default is <SKSE log folder>\SoulsStyleLoot_ItemIcons.json
-;IconManifestPath=Data\\PrismaUI\\views\\SoulsStyleLoot\\SoulsStyleLoot_ItemIcons.json
+EnchantedWeaponTier0Chance=20
+EnchantedWeaponTier1Chance=30
+EnchantedWeaponTier2Chance=45
+EnchantedWeaponTier3Chance=65
+EnchantedArmorTier0Chance=20
+EnchantedArmorTier1Chance=30
+EnchantedArmorTier2Chance=45
+EnchantedArmorTier3Chance=65

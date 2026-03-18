@@ -221,8 +221,10 @@
             let currentIndex = 0;
             let items = [];
             let cycleDelayMs = DEFAULT_CYCLE_MS;
+            let displayMs = 0;
             let requireActivateToClose = true;
             let promptType = 'keyboard';
+            let autoCloseTimer = null;
 
             function getPromptHtml(pt) {
                 var p = PROMPTS[pt] || PROMPTS.keyboard;
@@ -310,7 +312,19 @@
                         document.getElementById(PROMPT_WRAP_ID).style.display = 'flex';
                         if (typeof window.lootReadyForClose === 'function') window.lootReadyForClose('');
                     } else {
-                        document.getElementById(PANEL_ID).classList.remove('visible');
+                        var panelEnd = document.getElementById(PANEL_ID);
+                        if (!panelEnd) return;
+                        if (displayMs > 0) {
+                            autoCloseTimer = window.setTimeout(function() {
+                                if (typeof window.lootClosed === 'function') {
+                                    window.lootClosed();
+                                } else {
+                                    panelEnd.classList.remove('visible');
+                                }
+                            }, displayMs);
+                        } else {
+                            panelEnd.classList.remove('visible');
+                        }
                     }
                     return;
                 }
@@ -327,10 +341,12 @@
                 var panel = document.getElementById(PANEL_ID);
                 if (!panel) return;
                 if (cycleTimer) { clearTimeout(cycleTimer); cycleTimer = null; }
+                if (autoCloseTimer) { clearTimeout(autoCloseTimer); autoCloseTimer = null; }
                 try {
                     var data = JSON.parse(jsonString);
                     items = (data && Array.isArray(data.items)) ? data.items : (Array.isArray(data) ? data : []);
                     cycleDelayMs = (data && typeof data.cycleDelayMs === 'number') ? Math.max(500, Math.min(10000, data.cycleDelayMs)) : DEFAULT_CYCLE_MS;
+                    displayMs = (data && typeof data.displayMs === 'number') ? Math.max(500, data.displayMs | 0) : 0;
                     requireActivateToClose = !!(data && data.requireActivateToClose !== false);
                     promptType = (data && data.promptType) ? String(data.promptType) : 'keyboard';
 
@@ -358,6 +374,7 @@
 
             window.lootClosed = function() {
                 if (cycleTimer) { clearTimeout(cycleTimer); cycleTimer = null; }
+                if (autoCloseTimer) { clearTimeout(autoCloseTimer); autoCloseTimer = null; }
                 var panel = document.getElementById(PANEL_ID);
                 if (panel) panel.classList.remove('visible');
                 var w = document.getElementById(PROMPT_WRAP_ID);
